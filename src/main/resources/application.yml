@@ -1,0 +1,7 @@
+telegraf:
+  regions:
+   - west
+   - central
+   - east
+server:
+  port: 8081

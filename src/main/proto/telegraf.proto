@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package remote;
+
+service TelegrafRemote {
+    rpc StartConfigStreaming (Greeting) returns (stream ConfigPack) {};
+
+    rpc ReportState (CurrentState) returns (CurrentStateResponse) {};
+}
+
+message Greeting {
+    // The identifier of this running instance of remote telegraf
+    string tid = 1;
+
+    string region = 2;
+}
+
+message CurrentState {
+    // The identifier of this running instance of remote telegraf
+    string tid = 1;
+    string region = 2;
+
+    repeated string activeConfigIds = 3;
+}
+
+message CurrentStateResponse {
+    repeated string removedId = 1;
+}
+
+message ConfigPack {
+    repeated Config new = 1;
+    repeated Config modified = 2;
+    repeated string removedIds = 3;
+}
+
+message Config {
+    string id = 1;
+    string definition = 2;
+}
