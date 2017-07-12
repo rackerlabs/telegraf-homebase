@@ -1,0 +1,22 @@
+<div>
+    <md-toolbar>
+        <div class="md-toolbar-tools">
+            <h1 flex>Login</h1>
+        </div>
+    </md-toolbar>
+
+    <div layout="row" class="login-container">
+
+        <form flex="60" flex-offset="20" md-whiteframe="10" ng-submit="login()" layout="column" md-padding>
+            <md-input-container>
+                <label>Tenant ID</label>
+                <input type="text" ng-model="tenantId">
+            </md-input-container>
+
+            <md-button type="submit" class="md-primary">Login</md-button>
+        </form>
+
+    </div>
+
+
+</div>

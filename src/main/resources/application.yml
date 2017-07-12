@@ -3,5 +3,3 @@ telegraf:
    - west
    - central
    - east
-server:
-  port: 8081

@@ -10,9 +10,7 @@ import org.springframework.stereotype.Component;
 
 import javax.cache.Cache;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * @author Geoff Bourne
@@ -29,11 +27,13 @@ public class ConfigRepository {
         this.idCreator = idCreator;
     }
 
-    public String createRegional(String region, String definition) {
+    public String createRegional(String tenantId, String region, String definition, String comment) {
         final StoredRegionalConfig config = new StoredRegionalConfig();
         config.setDefinition(definition);
         final String id = idCreator.create();
         config.setId(id);
+        config.setComment(comment);
+        config.setTenantId(tenantId);
         config.setRegion(region);
 
         log.debug("Creating externally provided configuration: {}", config);

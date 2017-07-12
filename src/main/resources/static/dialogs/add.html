@@ -1,0 +1,43 @@
+<md-dialog aria-label="Add" id="add">
+    <form ng-cloak ng-submit="add()">
+
+        <md-toolbar>
+            <div class="md-toolbar-tools">
+                <h2>Add Input Plugin Config</h2>
+            </div>
+        </md-toolbar>
+        <md-dialog-content>
+            <div class="md-dialog-content add" layout="column">
+
+                    <md-input-container>
+                        <label>Comment</label>
+                        <input ng-model="comment">
+                    </md-input-container>
+
+                    <md-input-container>
+                        <label>Region</label>
+                        <md-select ng-model="region">
+                            <md-option ng-value="r" ng-repeat="r in regions">{{r}}</md-option>
+                        </md-select>
+                    </md-input-container>
+
+
+
+                    <md-input-container>
+                        <label>Definition</label>
+                        <a class="md-caption" href="https://docs.influxdata.com/telegraf/v1.3/inputs/" target="_blank">Telegraf Input Plugins Reference</a>
+                        <textarea ng-model="definition" ng-focus="$event.target.select()"></textarea>
+                    </md-input-container>
+
+
+            </div>
+        </md-dialog-content>
+
+        <md-dialog-actions layout="row">
+            <md-button type="submit" class="md-primary md-raised">Add</md-button>
+            <md-button ng-click="cancel()" class="md-primary">Cancel</md-button>
+        </md-dialog-actions>
+
+
+    </form>
+</md-dialog>

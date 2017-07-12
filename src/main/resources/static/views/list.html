@@ -1,0 +1,29 @@
+<div layout="column" class="full-height">
+    <md-toolbar>
+        <div class="md-toolbar-tools">
+            <h1 flex>Managed Telegraf Inputs</h1>
+            <div>
+                <md-button class="md-primary md-raised" ng-click="add()">Add</md-button>
+                <md-button ng-click="reload()">Reload</md-button>
+            </div>
+        </div>
+    </md-toolbar>
+
+    <md-content flex>
+        <div ng-if="configs.length==0"><h5>None yet...click "Add" up there</h5></div>
+        <md-card ng-repeat="c in configs track by c.id">
+            <div>
+                <h5>{{c.comment}} ({{c.id}})</h5>
+            </div>
+            <div>
+                <label>Region:</label>
+                {{c.region}}
+            </div>
+            <div md-whiteframe="3" class="multiline definition">{{c.definition}}</div>
+
+            <div>
+                <md-button ng-click="remove(c)">Remove</md-button>
+            </div>
+        </md-card>
+    </md-content>
+</div>

@@ -126,6 +126,7 @@
 	</dependencies>
 
 	<build>
+        <finalName>${project.artifactId}</finalName>
         <extensions>
             <extension>
                 <!-- see https://github.com/grpc/grpc-java -->

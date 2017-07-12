@@ -112,6 +112,11 @@ public class TelegrafConfigObserverService implements Service {
     }
 
     private void addToQueue(StoredRegionalConfig storedRegionalConfig) {
+        if (storedRegionalConfig == null) {
+            log.warn("Trying to queue null entry");
+            return;
+        }
+
         final IgniteQueue<StoredRegionalConfig> queue = ignite.queue(
                 QueueNames.PREFIX_PENDING_CONFIG + storedRegionalConfig.getRegion(),
                 0,

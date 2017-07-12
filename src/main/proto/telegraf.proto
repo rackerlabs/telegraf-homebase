@@ -35,5 +35,6 @@ message ConfigPack {
 
 message Config {
     string id = 1;
-    string definition = 2;
+    string tenantId = 2;
+    string definition = 3;
 }

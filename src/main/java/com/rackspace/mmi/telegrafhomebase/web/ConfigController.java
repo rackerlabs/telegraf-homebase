@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -42,15 +43,19 @@ public class ConfigController {
         return configRepository.getAll();
     }
 
-    @DeleteMapping("/{region}/{id}")
+    @DeleteMapping("{tenantId}/{region}/{id}")
     public void delete(@PathVariable String region, @PathVariable String id) {
         configRepository.delete(id);
     }
 
-    @PostMapping(value = "{region}", consumes = MediaType.TEXT_PLAIN_VALUE)
-    public ConfigResponse createConfig(@RequestBody String definition, @PathVariable String region) {
+    @PostMapping(value = "{tenantId}/{region}", consumes = MediaType.TEXT_PLAIN_VALUE)
+    public ConfigResponse createConfig(@RequestBody String definition,
+                                       @PathVariable String tenantId,
+                                       @PathVariable String region,
+                                       @RequestParam Optional<String> comment) {
 
-        final String id = configRepository.createRegional(region, definition);
+        final String id = configRepository.createRegional(tenantId, region, definition,
+                                                          comment.orElse(null));
 
         final ConfigResponse resp = new ConfigResponse();
         resp.setId(id);

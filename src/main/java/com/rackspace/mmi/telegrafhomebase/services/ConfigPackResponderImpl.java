@@ -39,8 +39,7 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
     @Autowired
     public ConfigPackResponderImpl(Ignite ignite, IgniteProperties igniteProperties) {
         this.ignite = ignite;
-        appliedCache = ignite.<AppliedKey, String>cache(CacheNames.APPLIED)
-                .withExpiryPolicy(new TouchedExpiryPolicy(new Duration(TimeUnit.SECONDS, igniteProperties.getAppliedConfigTTL())));
+        appliedCache = ignite.cache(CacheNames.APPLIED);
     }
 
     @Override
@@ -71,6 +70,7 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
             final Telegraf.ConfigPack.Builder configPackBuilder = Telegraf.ConfigPack.newBuilder();
             Telegraf.Config sentConfig = Telegraf.Config.newBuilder()
                     .setId(config.getId())
+                    .setTenantId(config.getTenantId())
                     .setDefinition(config.getDefinition())
                     .build();
             configPackBuilder.addNew(sentConfig);

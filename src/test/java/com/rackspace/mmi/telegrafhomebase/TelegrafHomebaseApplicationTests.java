@@ -7,11 +7,8 @@ import com.rackspace.mmi.telegrafhomebase.services.TelegrafWellBeingHandler;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -59,7 +56,7 @@ public class TelegrafHomebaseApplicationTests {
         when(idCreator.create())
                 .thenReturn("id-1");
 
-        configRepository.createRegional("west", "JUST A TEST");
+        configRepository.createRegional("ac-1", "west", "JUST A TEST", null);
 
         StreamObserver<Telegraf.ConfigPack> observer1 = Mockito.mock(StreamObserver.class);
         doAnswer(new OneTimeObserver())
@@ -73,6 +70,7 @@ public class TelegrafHomebaseApplicationTests {
 
         Telegraf.Config expectedConfig = Telegraf.Config.newBuilder()
                 .setId("id-1")
+                .setTenantId("ac-1")
                 .setDefinition("JUST A TEST")
                 .build();
         Telegraf.ConfigPack expectedConfigPack = Telegraf.ConfigPack.newBuilder()
