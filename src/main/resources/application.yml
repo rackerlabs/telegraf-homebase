@@ -1,5 +1,20 @@
+---
 telegraf:
   regions:
    - west
    - central
    - east
+ignite:
+  applied-config-t-t-l: 10
+
+---
+spring:
+  profiles: debug
+logging.level:
+  com.rackspace.mmi.telegrafhomebase: debug
+
+---
+spring:
+  profiles: docker
+ignite:
+  zk-connection: zookeeper:2181

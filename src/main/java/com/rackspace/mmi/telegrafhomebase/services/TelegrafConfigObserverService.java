@@ -102,9 +102,16 @@ public class TelegrafConfigObserverService implements Service {
         final Object v = cacheEvent.newValue();
         if (v instanceof StoredRegionalConfig) {
             final StoredRegionalConfig storedRegionalConfig = (StoredRegionalConfig) v;
-            log.debug("Saw new or updated regional config: {}", storedRegionalConfig);
+            if (!cacheEvent.hasOldValue()) {
+                //TODO: determine why two ignite threads see this same event
+                // such as sys-stripe-2-#3%null% and sys-#38%null%
+                log.debug("Saw new regional config: {}", storedRegionalConfig);
 
-            addToQueue(storedRegionalConfig);
+                addToQueue(storedRegionalConfig);
+            }
+            else {
+                log.debug("Saw updated regional config: {}", storedRegionalConfig);
+            }
         }
         else {
             log.warn("Unexpected cache put type: {}", v.getClass());

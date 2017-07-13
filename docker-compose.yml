@@ -1,16 +1,36 @@
 version: '3'
 
 services:
-#  homebase:
-#    build: .
-#    ports:
-#      - 8080:8080
-#      - 6565:6565
+  zookeeper:
+    image: jplock/zookeeper
+
+  telegraf:
+    image: local/telegraf
+    volumes:
+      - ${PWD}/config/telegraf.conf:/etc/telegraf/telegraf.conf
+    command: --remote-config=homebase:6565 --region=${REGION:-west}
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 5s
+
+  homebase:
+    image: local/homebase
+    ports:
+      - 8082:8080
+    environment:
+      SPRING_PROFILES_ACTIVE: debug,docker
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        # allow time for ignite hand-off
+        delay: 60s
+
   influxdb:
     image: influxdb
-    ports:
-      - 8083:8083
-      - 8086:8086
+
   grafana:
     image: grafana/grafana
     ports:
