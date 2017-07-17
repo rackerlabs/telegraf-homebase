@@ -29,13 +29,13 @@ angular.module("ConfigApp", [
                 return $http.get('/config/'+session.tenantId);
             },
 
-            add: function(region, definition, comment) {
+            add: function(region, definition, title) {
                 return $http({
                     method: 'POST',
                     url: '/config/'+session.tenantId+'/'+region,
                     data: definition,
                     params: {
-                        comment: comment
+                        title: title
                     },
                     headers: {
                         'Content-Type': 'text/plain'
@@ -94,7 +94,7 @@ angular.module("ConfigApp", [
                 controller: 'AddController',
                 fullscreen: true
             }).then(function ok(details){
-                ConfigApi.add(details.region, details.definition, details.comment)
+                ConfigApi.add(details.region, details.definition, details.title)
                     .then(function success(resp) {
                         $mdToast.show(
                             $mdToast.simple()
@@ -110,7 +110,7 @@ angular.module("ConfigApp", [
     .controller('AddController', function($scope, $mdDialog) {
         $scope.regions = ['west', 'central', 'east'];
         $scope.region = $scope.regions[0];
-        $scope.comment = '';
+        $scope.title = '';
         $scope.definition = '';
 
         $scope.examples = [
@@ -154,7 +154,7 @@ angular.module("ConfigApp", [
         $scope.add = function() {
             $mdDialog.hide({
                 region: $scope.region,
-                comment: $scope.comment,
+                title: $scope.title,
                 definition: $scope.definition
             })
         };

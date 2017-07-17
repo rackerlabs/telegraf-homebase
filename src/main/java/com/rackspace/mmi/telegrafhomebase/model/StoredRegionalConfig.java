@@ -13,7 +13,7 @@ public class StoredRegionalConfig implements Serializable {
     static final long serialVersionUID = 0L;
 
     String id;
-    String comment;
+    String title;
 
     /**
      * An optional field that provides linkage to the group that contains this config

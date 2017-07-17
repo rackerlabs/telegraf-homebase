@@ -53,10 +53,10 @@ public class ConfigController {
     public ConfigResponse createConfig(@RequestBody String definition,
                                        @PathVariable String tenantId,
                                        @PathVariable String region,
-                                       @RequestParam Optional<String> comment) {
+                                       @RequestParam Optional<String> title) {
 
         final String id = configRepository.createRegional(tenantId, region, definition,
-                                                          comment.orElse(null));
+                                                          title.orElse(null));
 
         final ConfigResponse resp = new ConfigResponse();
         resp.setId(id);

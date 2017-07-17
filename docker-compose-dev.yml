@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  zookeeper:
+    image: jplock/zookeeper
+
+  cassandra:
+    image: cassandra:3.0
+    volumes:
+      - ${PWD}/data/cassandra:/var/lib/cassandra
+    ports:
+      - 9042:9042
+    environment:
+      CASSANDRA_SEEDS: cassandra
+
+  influxdb:
+    image: influxdb
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000

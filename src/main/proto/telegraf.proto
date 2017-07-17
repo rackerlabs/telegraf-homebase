@@ -37,4 +37,5 @@ message Config {
     string id = 1;
     string tenantId = 2;
     string definition = 3;
+    string title = 4;
 }

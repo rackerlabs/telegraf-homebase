@@ -78,6 +78,7 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
             Telegraf.Config sentConfig = Telegraf.Config.newBuilder()
                     .setId(config.getId())
                     .setTenantId(config.getTenantId())
+                    .setTitle(config.getTitle())
                     .setDefinition(config.getDefinition())
                     .build();
             configPackBuilder.addNew(sentConfig);

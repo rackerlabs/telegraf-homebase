@@ -12,7 +12,7 @@
     <md-content flex>
         <div ng-if="configs.length==0"><h5>None yet...click "Add" up there</h5></div>
         <md-card ng-repeat="c in configs track by c.id">
-            <h5 class="md-title">{{c.comment}} ({{c.id}})</h5>
+            <h5 class="md-title">{{c.title}} ({{c.id}})</h5>
             <table class="prop-table">
                 <tr>
                     <th>Region:</th>

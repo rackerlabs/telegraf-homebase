@@ -43,12 +43,12 @@ public class ConfigRepository {
         regionalConfigCache.localLoadCacheAsync(null);
     }
 
-    public String createRegional(String tenantId, String region, String definition, String comment) {
+    public String createRegional(String tenantId, String region, String definition, String title) {
         final StoredRegionalConfig config = new StoredRegionalConfig();
         config.setDefinition(definition);
         final String id = idCreator.create();
         config.setId(id);
-        config.setComment(comment);
+        config.setTitle(title);
         config.setTenantId(tenantId);
         config.setRegion(region);
 

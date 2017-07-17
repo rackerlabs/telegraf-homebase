@@ -14,7 +14,7 @@
     <valuePersistence class="com.rackspace.mmi.telegrafhomebase.model.StoredRegionalConfig" strategy="POJO">
         <!-- including id as a field ensures that it is backfilled even though it is also the key -->
         <field name="id"/>
-        <field name="comment" />
+        <field name="title" />
         <field name="definition" />
         <field name="region" index="true"/>
         <field name="tenantId" index="true"/>
