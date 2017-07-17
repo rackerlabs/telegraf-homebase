@@ -4,13 +4,25 @@ services:
   zookeeper:
     image: jplock/zookeeper
 
+  cassandra:
+    image: cassandra:3.0
+    volumes:
+      - cassandra:/var/lib/cassandra
+# for dev testing
+#    volumes:
+#      - ${PWD}/data/cassandra:/var/lib/cassandra
+#    ports:
+#      - 9042:9042
+#    environment:
+#      CASSANDRA_SEEDS: cassandra
+
   telegraf:
     image: local/telegraf
     volumes:
       - ${PWD}/config/telegraf.conf:/etc/telegraf/telegraf.conf
     command: --remote-config=homebase:6565 --region=${REGION:-west}
     deploy:
-      replicas: 3
+      replicas: 2
       update_config:
         parallelism: 1
         delay: 5s
@@ -18,11 +30,11 @@ services:
   homebase:
     image: local/homebase
     ports:
-      - 8082:8080
+      - 8083:8080
     environment:
       SPRING_PROFILES_ACTIVE: debug,docker
     deploy:
-      replicas: 3
+      replicas: 1
       update_config:
         parallelism: 1
         # allow time for ignite hand-off
@@ -35,3 +47,6 @@ services:
     image: grafana/grafana
     ports:
       - 3000:3000
+
+volumes:
+  cassandra:

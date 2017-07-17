@@ -26,7 +26,7 @@ angular.module("ConfigApp", [
             },
 
             getConfigs: function() {
-                return $http.get('/config');
+                return $http.get('/config/'+session.tenantId);
             },
 
             add: function(region, definition, comment) {
@@ -110,16 +110,46 @@ angular.module("ConfigApp", [
     .controller('AddController', function($scope, $mdDialog) {
         $scope.regions = ['west', 'central', 'east'];
         $scope.region = $scope.regions[0];
-        $scope.comment = "";
-        $scope.definition = '[[inputs.http_response]]\n' +
-            '  ## Server address (default http://localhost)\n' +
-            '  address = "https://www.rackspace.com"\n' +
-            '  ## Set response_timeout (default 5 seconds)\n' +
-            '  response_timeout = "5s"\n' +
-            '  ## HTTP Request Method\n' +
-            '  method = "GET"\n' +
-            '  ## Whether to follow redirects from the server (defaults to false)\n' +
-            '  follow_redirects = true';
+        $scope.comment = '';
+        $scope.definition = '';
+
+        $scope.examples = [
+            {
+                label: "HTTP response",
+                definition: '[[inputs.http_response]]\n' +
+                '  ## Server address (default http://localhost)\n' +
+                '  address = "https://www.rackspace.com"\n' +
+                '  ## Set response_timeout (default 5 seconds)\n' +
+                '  response_timeout = "5s"\n' +
+                '  ## HTTP Request Method\n' +
+                '  method = "GET"\n' +
+                '  ## Whether to follow redirects from the server (defaults to false)\n' +
+                '  follow_redirects = true'
+            },
+            {
+                label: 'SNMP',
+                definition: '[[inputs.snmp]]\n' +
+                '  agents = [ "10.5.4.157:161" ]\n' +
+                '  version = 2\n' +
+                '  community = "public"\n' +
+                '\n' +
+                '  name = "printer"\n' +
+                '  [[inputs.snmp.field]]\n' +
+                '    name = "name"\n' +
+                '    oid = ".1.3.6.1.2.1.1.5.0"\n' +
+                '    is_tag = true\n' +
+                '  [[inputs.snmp.field]]\n' +
+                '    name = "total-page-count-letter-simplex"\n' +
+                '    oid = ".1.3.6.1.4.1.11.2.3.9.4.2.1.1.16.1.1.13.0"\n' +
+                '  [[inputs.snmp.field]]\n' +
+                '    name = "total-page-count-letter-duplex"\n' +
+                '    oid = ".1.3.6.1.4.1.11.2.3.9.4.2.1.1.16.1.1.14.0"'
+            }
+        ];
+
+        $scope.$watch('selectedExample', function (val) {
+            $scope.definition = val;
+        });
 
         $scope.add = function() {
             $mdDialog.hide({

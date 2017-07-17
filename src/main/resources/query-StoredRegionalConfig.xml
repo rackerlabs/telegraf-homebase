@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean name="storedRegionalConfigQueryEntities" class="com.rackspace.mmi.telegrafhomebase.config.QueryEntities">
+        <constructor-arg>
+            <list>
+
+                <bean class="org.apache.ignite.cache.QueryEntity">
+                    <property name="keyType" value="java.lang.String"/>
+                    <property name="valueType" value="com.rackspace.mmi.telegrafhomebase.model.StoredRegionalConfig"/>
+
+                    <property name="keyFieldName" value="id"/>
+                    <property name="fields">
+                        <map>
+                            <!-- must be present since it's a key field -->
+                            <entry key="id" value="java.lang.String"/>
+                            <entry key="tenantId" value="java.lang.String"/>
+                        </map>
+                    </property>
+
+                    <property name="indexes">
+                        <list>
+                            <bean class="org.apache.ignite.cache.QueryIndex">
+                                <constructor-arg value="tenantId"/>
+                            </bean>
+                        </list>
+                    </property>
+                </bean>
+
+            </list>
+        </constructor-arg>
+    </bean>
+</beans>

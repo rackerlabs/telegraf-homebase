@@ -4,8 +4,9 @@ telegraf:
    - west
    - central
    - east
-ignite:
-  applied-config-t-t-l: 10
+logging:
+  level:
+    org.apache.ignite.spi.discovery.tcp.ipfinder.zk.TcpDiscoveryZookeeperIpFinder: warn
 
 ---
 spring:
@@ -18,3 +19,6 @@ spring:
   profiles: docker
 ignite:
   zk-connection: zookeeper:2181
+cassandra:
+  contact-points:
+    - cassandra:9042

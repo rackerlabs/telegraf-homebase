@@ -1,16 +1,23 @@
 package com.rackspace.mmi.telegrafhomebase.services;
 
 import com.rackspace.mmi.telegrafhomebase.CacheNames;
+import com.rackspace.mmi.telegrafhomebase.model.RunningKey;
 import com.rackspace.mmi.telegrafhomebase.model.StoredRegionalConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
+import org.apache.ignite.IgniteTransactions;
+import org.apache.ignite.cache.query.QueryCursor;
+import org.apache.ignite.cache.query.SqlQuery;
+import org.apache.ignite.transactions.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.cache.Cache;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Geoff Bourne
@@ -19,12 +26,21 @@ import java.util.List;
 @Component @Slf4j
 public class ConfigRepository {
     private final IgniteCache<String, StoredRegionalConfig> regionalConfigCache;
+    private final IgniteCache<RunningKey, String> runningCache;
     private final IdCreator idCreator;
+    private final IgniteTransactions transactions;
 
     @Autowired
     public ConfigRepository(Ignite ignite, IdCreator idCreator) {
         regionalConfigCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
+        runningCache = ignite.cache(CacheNames.RUNNING);
+        transactions = ignite.transactions();
         this.idCreator = idCreator;
+    }
+
+    @PostConstruct
+    public void loadCache() {
+        regionalConfigCache.localLoadCacheAsync(null);
     }
 
     public String createRegional(String tenantId, String region, String definition, String comment) {
@@ -37,7 +53,11 @@ public class ConfigRepository {
         config.setRegion(region);
 
         log.debug("Creating externally provided configuration: {}", config);
-        regionalConfigCache.put(config.getId(), config);
+
+        try (Transaction tx = transactions.txStart()) {
+            regionalConfigCache.put(config.getId(), config);
+            tx.commit();
+        }
 
         return id;
     }
@@ -54,6 +74,38 @@ public class ConfigRepository {
 
     public void delete(String id) {
         log.info("Deleting {}", id);
-        regionalConfigCache.remove(id);
+
+        try (Transaction tx = transactions.txStart()) {
+            regionalConfigCache.remove(id);
+            tx.commit();
+        }
+    }
+
+    public StoredRegionalConfig getOne(String region, String id) {
+        final StoredRegionalConfig storedRegionalConfig = regionalConfigCache.get(id);
+        storedRegionalConfig.setRunningOn(runningCache.get(new RunningKey(id, region)));
+
+        return storedRegionalConfig;
+    }
+
+    public List<StoredRegionalConfig> getAllForTenant(String tenantId) {
+        final SqlQuery<String, StoredRegionalConfig> query = new SqlQuery<>(
+                StoredRegionalConfig.class,
+                "tenantid = ?"
+        );
+
+        try (Transaction tx = transactions.txStart()) {
+            final QueryCursor<Cache.Entry<String, StoredRegionalConfig>> queryCursor =
+                    regionalConfigCache.query(query.setArgs(tenantId));
+            return queryCursor.getAll().stream()
+                    .map(entry -> {
+                        final StoredRegionalConfig value = entry.getValue();
+
+                        value.setRunningOn(runningCache.get(new RunningKey(value.getId(), value.getRegion())));
+
+                        return value;
+                    })
+                    .collect(Collectors.toList());
+        }
     }
 }

@@ -5,6 +5,6 @@ package com.rackspace.mmi.telegrafhomebase;
  * @since Jul 2017
  */
 public class CacheNames {
-    public static final String APPLIED = "applied";
+    public static final String RUNNING = "running";
     public static final String REGIONAL_CONFIG = "regional-config";
 }

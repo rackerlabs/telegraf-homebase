@@ -1,12 +1,9 @@
 package com.rackspace.mmi.telegrafhomebase.web;
 
-import com.rackspace.mmi.telegrafhomebase.CacheNames;
 import com.rackspace.mmi.telegrafhomebase.model.ConfigResponse;
 import com.rackspace.mmi.telegrafhomebase.model.StoredRegionalConfig;
 import com.rackspace.mmi.telegrafhomebase.services.ConfigRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ignite.Ignite;
-import org.apache.ignite.IgniteCache;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * @author Geoff Bourne
@@ -38,9 +34,14 @@ public class ConfigController {
         this.configRepository = configRepository;
     }
 
-    @GetMapping
-    public List<StoredRegionalConfig> getAll() {
-        return configRepository.getAll();
+    @GetMapping("{tenantId}")
+    public List<StoredRegionalConfig> getAllForTenant(@PathVariable String tenantId) {
+        return configRepository.getAllForTenant(tenantId);
+    }
+
+    @GetMapping("{tenantId}/{region}/{id}")
+    public StoredRegionalConfig getOne(@PathVariable String region, @PathVariable String id) {
+        return configRepository.getOne(region, id);
     }
 
     @DeleteMapping("{tenantId}/{region}/{id}")

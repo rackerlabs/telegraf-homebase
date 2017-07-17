@@ -29,3 +29,7 @@ textarea {
 .login-container {
     padding: 10px 0;
 }
+
+.prop-table th {
+    text-align: left;
+}

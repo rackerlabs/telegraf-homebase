@@ -1,13 +1,13 @@
 local-image:
 	docker build -t local/homebase .
 
-swarm-deploy :
+swarm-up :
 	docker stack deploy -c docker-compose.yml tremote
 
-swarm-undeploy:
+swarm-down:
 	docker stack rm tremote
 
-status:
+swarm-status:
 	docker stack ps tremote
 
 watch-telegraf-logs:

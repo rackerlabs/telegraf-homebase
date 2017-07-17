@@ -1,9 +1,9 @@
 package com.rackspace.mmi.telegrafhomebase.services;
 
 import com.rackspace.mmi.telegrafhomebase.CacheNames;
-import com.rackspace.mmi.telegrafhomebase.QueueNames;
-import com.rackspace.mmi.telegrafhomebase.model.AppliedKey;
+import com.rackspace.mmi.telegrafhomebase.model.RunningKey;
 import com.rackspace.mmi.telegrafhomebase.model.StoredRegionalConfig;
+import com.rackspace.mmi.telegrafhomebase.shared.DistributedQueueUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
@@ -12,14 +12,9 @@ import org.apache.ignite.binary.BinaryObject;
 import org.apache.ignite.events.CacheEvent;
 import org.apache.ignite.events.Event;
 import org.apache.ignite.events.EventType;
-import org.apache.ignite.resources.IgniteInstanceResource;
-import org.apache.ignite.services.Service;
-import org.apache.ignite.services.ServiceContext;
+import org.apache.ignite.lang.IgnitePredicate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * @author Geoff Bourne
@@ -27,39 +22,46 @@ import java.util.UUID;
  */
 @Component
 @Slf4j
-public class TelegrafConfigObserverService implements Service {
+public class TelegrafConfigObserver {
+    private final Ignite ignite;
+    private final IgniteCache<String, StoredRegionalConfig> storedCache;
+    private final IgnitePredicate<Event> handler;
+    final IgniteQueue<StoredRegionalConfig> queue;
 
-    @IgniteInstanceResource
-    private Ignite ignite;
+    @Autowired
+    public TelegrafConfigObserver(Ignite ignite) {
+        this.ignite = ignite;
+        storedCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
 
-    private UUID ourListenerId;
-
-    private static final Set<String> expectedCaches = new HashSet<>();
-    static {
-        expectedCaches.add(CacheNames.REGIONAL_CONFIG);
-        expectedCaches.add(CacheNames.APPLIED);
+        this.handler = this::handle;
+        queue = ignite.queue(
+                DistributedQueueUtils.derivePendingConfigQueueName("west"),
+                0, null
+        );
     }
 
-    private static boolean filterEvent(Event e) {
-        if (e instanceof CacheEvent) {
-            final CacheEvent cacheEvent = (CacheEvent) e;
-            if (expectedCaches.contains(cacheEvent.cacheName())) {
-                return true;
-            }
-        }
-        return false;
+    void startEventListening() throws Exception {
+        log.info("Starting");
+
+        // Apparently all we need is a local listener even for events originating elsewhere in the cluster
+        // Related to http://apache-ignite-users.70518.x6.nabble.com/Cache-Events-Questions-tp1090p1096.html
+        ignite.events().localListen(handler,
+                                    EventType.EVT_CACHE_OBJECT_PUT,
+                                    EventType.EVT_CACHE_OBJECT_EXPIRED);
+
+        log.debug("Started event listening");
     }
 
-    @Override
-    public void init(ServiceContext serviceContext) throws Exception {
-        log.info("Initializing");
+    void stopEventListening() {
+        log.info("Stopping event listening");
 
-        ourListenerId = ignite.events().remoteListen(this::handle, TelegrafConfigObserverService::filterEvent,
-                                                     EventType.EVT_CACHE_OBJECT_PUT,
-                                                     EventType.EVT_CACHE_OBJECT_EXPIRED);
+        ignite.events().stopLocalListen(handler,
+                                        EventType.EVT_CACHE_OBJECT_PUT,
+                                        EventType.EVT_CACHE_OBJECT_EXPIRED);
     }
 
-    private boolean handle(UUID uuid, Event e) {
+    private boolean handle(Event e) {
+        log.debug("Handling event={}", e);
 
         if (e instanceof CacheEvent) {
             final CacheEvent cacheEvent = (CacheEvent) e;
@@ -71,7 +73,7 @@ public class TelegrafConfigObserverService implements Service {
                     break;
 
                 case EventType.EVT_CACHE_OBJECT_EXPIRED:
-                    if (cacheEvent.cacheName().equals(CacheNames.APPLIED)) {
+                    if (cacheEvent.cacheName().equals(CacheNames.RUNNING)) {
                         handleAppliedConfigExpiration(cacheEvent);
                     }
                     break;
@@ -83,15 +85,14 @@ public class TelegrafConfigObserverService implements Service {
 
     private void handleAppliedConfigExpiration(CacheEvent cacheEvent) {
         final Object rawKey = cacheEvent.key();
-        final AppliedKey key;
+        final RunningKey key;
         if (rawKey instanceof BinaryObject) {
             key = ((BinaryObject) rawKey).deserialize();
         } else {
-            key = (AppliedKey) rawKey;
+            key = (RunningKey) rawKey;
         }
         log.info("Observed expiration of applied config {}", key);
 
-        final IgniteCache<String, StoredRegionalConfig> storedCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
         final StoredRegionalConfig storedRegionalConfig = storedCache.get(key.getId());
 
         log.info("Re-queueing regional config: {}", storedRegionalConfig);
@@ -102,18 +103,16 @@ public class TelegrafConfigObserverService implements Service {
         final Object v = cacheEvent.newValue();
         if (v instanceof StoredRegionalConfig) {
             final StoredRegionalConfig storedRegionalConfig = (StoredRegionalConfig) v;
-            if (!cacheEvent.hasOldValue()) {
+//            if (!cacheEvent.hasOldValue()) {
                 //TODO: determine why two ignite threads see this same event
                 // such as sys-stripe-2-#3%null% and sys-#38%null%
                 log.debug("Saw new regional config: {}", storedRegionalConfig);
 
                 addToQueue(storedRegionalConfig);
-            }
-            else {
-                log.debug("Saw updated regional config: {}", storedRegionalConfig);
-            }
-        }
-        else {
+//            } else {
+//                log.debug("Saw updated regional config: {}", storedRegionalConfig);
+//            }
+        } else {
             log.warn("Unexpected cache put type: {}", v.getClass());
         }
     }
@@ -124,35 +123,17 @@ public class TelegrafConfigObserverService implements Service {
             return;
         }
 
-        final IgniteQueue<StoredRegionalConfig> queue = ignite.queue(
-                QueueNames.PREFIX_PENDING_CONFIG + storedRegionalConfig.getRegion(),
-                0,
-                null
-        );
+//        final IgniteQueue<StoredRegionalConfig> queue = ignite.queue(
+//                DistributedQueueUtils.derivePendingConfigQueueName(storedRegionalConfig.getRegion()),
+//                0, null
+//        );
 
         if (queue != null) {
             queue.add(storedRegionalConfig);
 
             log.debug("Queued {}", storedRegionalConfig);
-        }
-        else {
+        } else {
             log.warn("Region={} was not previously registered for queueing", storedRegionalConfig.getRegion());
-        }
-    }
-
-    @Override
-    public void execute(ServiceContext serviceContext) throws Exception {
-        log.info("Executing...but we're a background service");
-        // and nothing else to do since we're just an event listener
-    }
-
-    @Override
-    public void cancel(ServiceContext serviceContext) {
-        log.info("Cancelling");
-
-        if (ourListenerId != null) {
-            log.debug("Stopping our remote listener");
-            ignite.events().stopRemoteListen(ourListenerId);
         }
     }
 }

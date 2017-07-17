@@ -33,8 +33,10 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "grpc.port=0",
-                "ignite.appliedConfigTTL=1",
-                "logging.level.org.apache.ignite.internal.util.worker.GridWorker=debug"
+                "ignite.appliedConfigTtl=1",
+                "ignite.storedConfigBackups=1",
+                "ignite.appliedConfigBackups=1",
+                "logging.level.com.rackspace.mmi.telegrafhomebase=debug"
         })
 public class TelegrafHomebaseApplicationTests {
 
@@ -83,6 +85,7 @@ public class TelegrafHomebaseApplicationTests {
         // now start a second "remote telegraf"
         configPackResponder.startConfigStreaming("t-2", "west", observer2);
 
+        Thread.sleep(10);
         final Telegraf.CurrentStateResponse normalResp = wellBeingHandler.confirmState("t-1",
                                                                                        "west",
                                                                                        Collections.singletonList("id-1"));

@@ -1,0 +1,23 @@
+<persistence keyspace="telegraf" table="stored_regional_config">
+    <keyspaceOptions>
+        REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}
+        AND DURABLE_WRITES = true
+    </keyspaceOptions>
+
+    <tableOptions>
+        read_repair_chance = 0.2
+    </tableOptions>
+
+    <keyPersistence class="java.lang.String" strategy="PRIMITIVE" column="id">
+    </keyPersistence>
+
+    <valuePersistence class="com.rackspace.mmi.telegrafhomebase.model.StoredRegionalConfig" strategy="POJO">
+        <!-- including id as a field ensures that it is backfilled even though it is also the key -->
+        <field name="id"/>
+        <field name="comment" />
+        <field name="definition" />
+        <field name="region" index="true"/>
+        <field name="tenantId" index="true"/>
+        <field name="assignedTo" index="true"/>
+    </valuePersistence>
+</persistence>

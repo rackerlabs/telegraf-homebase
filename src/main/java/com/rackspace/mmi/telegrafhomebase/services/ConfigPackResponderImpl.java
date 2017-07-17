@@ -2,7 +2,7 @@ package com.rackspace.mmi.telegrafhomebase.services;
 
 import com.rackspace.mmi.telegrafhomebase.CacheNames;
 import com.rackspace.mmi.telegrafhomebase.config.IgniteProperties;
-import com.rackspace.mmi.telegrafhomebase.model.AppliedKey;
+import com.rackspace.mmi.telegrafhomebase.model.RunningKey;
 import com.rackspace.mmi.telegrafhomebase.model.StoredRegionalConfig;
 import com.rackspace.mmi.telegrafhomebase.shared.DistributedQueueUtils;
 import io.grpc.Status;
@@ -12,17 +12,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.IgniteException;
+import org.apache.ignite.IgniteInterruptedException;
 import org.apache.ignite.IgniteQueue;
+import org.apache.ignite.transactions.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import remote.Telegraf;
 
-import javax.cache.expiry.Duration;
-import javax.cache.expiry.TouchedExpiryPolicy;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Geoff Bourne
@@ -33,13 +31,13 @@ import java.util.concurrent.TimeUnit;
 public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
 
     private final Ignite ignite;
-    private final IgniteCache<AppliedKey, String> appliedCache;
+    private final IgniteCache<RunningKey, String> appliedCache;
     private boolean closed;
 
     @Autowired
     public ConfigPackResponderImpl(Ignite ignite, IgniteProperties igniteProperties) {
         this.ignite = ignite;
-        appliedCache = ignite.cache(CacheNames.APPLIED);
+        appliedCache = ignite.cache(CacheNames.RUNNING);
     }
 
     @Override
@@ -47,22 +45,31 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
         log.debug("Setting up config pack provider for telegraf={} in region={}",
                   tid, region);
 
-        final IgniteQueue<StoredRegionalConfig> queue = ignite.queue(DistributedQueueUtils.derivePendingConfigQueueName(
-                region),
-                                                                     0, null);
+        final IgniteQueue<StoredRegionalConfig> queue;
+        try {
+            queue = ignite.queue(DistributedQueueUtils.derivePendingConfigQueueName(
+                    region),
+                                 0, null);
+
+        } catch (Exception e) {
+            log.warn("Unexpected exception while locating queue", e);
+            responseObserver.onError(new IllegalStateException("Unexpected exception while locating queue"));
+            return;
+        }
+
         while (!closed) {
             log.debug("Waiting for next pending config");
 
             final StoredRegionalConfig config;
             try {
                 config = queue.take();
+            } catch (IgniteInterruptedException e) {
+                log.warn("Interrupted during queue take, should happen only during shutdown");
+                return;
             } catch (IgniteException e) {
-                if (closed) {
-                    log.trace("Expected exception during shutdown", e);
-                } else {
-                    log.warn("Unexpceted exception while taking from pending config queue", e);
-                    responseObserver.onError(new IllegalStateException("Unexpceted exception while taking from pending config queue"));
-                }
+                log.warn("Unexpceted exception while taking from pending config queue", e);
+                responseObserver.onError(new IllegalStateException(
+                        "Unexpected exception while taking from pending config queue"));
                 return;
             }
             log.debug("Acquired next configuration in queue={}", config);
@@ -80,16 +87,19 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
                 log.debug("Responding to {} with configPack={}", tid, configPack);
                 responseObserver.onNext(configPack);
 
-                final AppliedKey key = new AppliedKey(config.getId(), region);
+                final RunningKey key = new RunningKey(config.getId(), region);
                 log.debug("Noting initial application of {} to {}", key, tid);
-                appliedCache.put(key, tid);
+
+                try (Transaction tx = ignite.transactions().txStart()) {
+                    appliedCache.put(key, tid);
+                    tx.commit();
+                }
             } catch (StatusRuntimeException e) {
                 if (e.getStatus().equals(Status.CANCELLED)) {
                     log.debug("Re-queueing due to cancelled telegraf: {}", config);
                     queue.offer(config);
                     log.debug("Farend {} cancelled stream", tid);
-                }
-                else {
+                } else {
                     log.warn("Observed exception providing config pack to telegraf={}", tid, e);
                 }
                 return;

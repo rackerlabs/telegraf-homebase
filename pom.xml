@@ -27,6 +27,7 @@
         <grpc-spring-boot.version>2.0.4</grpc-spring-boot.version>
         <ignite.version>2.0.0</ignite.version>
         <guava.version>18.0</guava.version>
+        <spring-data-cassandra.version>2.0.0.M4</spring-data-cassandra.version>
     </properties>
 
 	<dependencies>
@@ -89,6 +90,34 @@
             <groupId>org.apache.ignite</groupId>
             <artifactId>ignite-spring</artifactId>
             <version>${ignite.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ignite</groupId>
+            <artifactId>ignite-cassandra-store</artifactId>
+            <version>${ignite.version}</version>
+            <exclusions>
+                <!-- let grpc-netty drive the newest version it needs -->
+                <exclusion>
+                    <artifactId>netty-handler</artifactId>
+                    <groupId>io.netty</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>netty-transport</artifactId>
+                    <groupId>io.netty</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>netty-codec</artifactId>
+                    <groupId>io.netty</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>netty-buffer</artifactId>
+                    <groupId>io.netty</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>netty-common</artifactId>
+                    <groupId>io.netty</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.ignite</groupId>
@@ -173,6 +202,16 @@
 			<name>bintray</name>
 			<url>http://dl.bintray.com/lognet/maven</url>
 		</repository>
+
+        <repository>
+            <!-- for spring data cassandra milestones -->
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/libs-milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
 	</repositories>
 
 </project>
