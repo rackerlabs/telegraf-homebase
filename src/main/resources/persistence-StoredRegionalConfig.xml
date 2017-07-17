@@ -11,7 +11,7 @@
     <keyPersistence class="java.lang.String" strategy="PRIMITIVE" column="id">
     </keyPersistence>
 
-    <valuePersistence class="com.rackspace.mmi.telegrafhomebase.model.StoredRegionalConfig" strategy="POJO">
+    <valuePersistence class="com.rackspace.telegrafhomebase.model.StoredRegionalConfig" strategy="POJO">
         <!-- including id as a field ensures that it is backfilled even though it is also the key -->
         <field name="id"/>
         <field name="title" />
