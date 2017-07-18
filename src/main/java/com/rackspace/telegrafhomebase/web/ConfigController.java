@@ -41,7 +41,7 @@ public class ConfigController {
 
     @GetMapping("{tenantId}/{region}/{id}")
     public StoredRegionalConfig getOne(@PathVariable String region, @PathVariable String id) {
-        return configRepository.getOne(region, id);
+        return configRepository.getWithDetails(region, id);
     }
 
     @DeleteMapping("{tenantId}/{region}/{id}")

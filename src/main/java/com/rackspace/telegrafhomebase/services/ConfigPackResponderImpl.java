@@ -1,7 +1,6 @@
 package com.rackspace.telegrafhomebase.services;
 
 import com.rackspace.telegrafhomebase.CacheNames;
-import com.rackspace.telegrafhomebase.config.IgniteProperties;
 import com.rackspace.telegrafhomebase.model.RunningKey;
 import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
 import com.rackspace.telegrafhomebase.shared.DistributedQueueUtils;
@@ -31,13 +30,15 @@ import java.io.IOException;
 public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
 
     private final Ignite ignite;
-    private final IgniteCache<RunningKey, String> appliedCache;
+    private final IgniteCache<RunningKey, String> runningCache;
+    private final ConfigRepository configRepository;
     private boolean closed;
 
     @Autowired
-    public ConfigPackResponderImpl(Ignite ignite, IgniteProperties igniteProperties) {
+    public ConfigPackResponderImpl(Ignite ignite, ConfigRepository configRepository) {
         this.ignite = ignite;
-        appliedCache = ignite.cache(CacheNames.RUNNING);
+        runningCache = ignite.cache(CacheNames.RUNNING);
+        this.configRepository = configRepository;
     }
 
     @Override
@@ -45,7 +46,7 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
         log.debug("Setting up config pack provider for telegraf={} in region={}",
                   tid, region);
 
-        final IgniteQueue<StoredRegionalConfig> queue;
+        final IgniteQueue<String> queue;
         try {
             queue = ignite.queue(DistributedQueueUtils.derivePendingConfigQueueName(
                     region),
@@ -60,9 +61,9 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
         while (!closed) {
             log.debug("Waiting for next pending config");
 
-            final StoredRegionalConfig config;
+            final String configId;
             try {
-                config = queue.take();
+                configId = queue.take();
             } catch (IgniteInterruptedException e) {
                 log.warn("Interrupted during queue take, should happen only during shutdown");
                 return;
@@ -72,42 +73,55 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
                         "Unexpected exception while taking from pending config queue"));
                 return;
             }
-            log.debug("Acquired next configuration in queue={}", config);
+            log.debug("Acquired next configuration in queue={}", configId);
 
-            final Telegraf.ConfigPack.Builder configPackBuilder = Telegraf.ConfigPack.newBuilder();
-            final Telegraf.Config.Builder builder = Telegraf.Config.newBuilder()
-                    .setId(config.getId())
-                    .setTenantId(config.getTenantId())
-                    .setDefinition(config.getDefinition());
+            final StoredRegionalConfig config = configRepository.get(configId);
 
-            if (config.getTitle() != null) {
-                builder.setTitle(config.getTitle());
+            if (config != null) {
+                respondWithNextConfig(tid, region, responseObserver, queue, configId, config);
             }
+            else {
+                log.warn("Saw configId={} in pending queue, but no corresponding config object", configId);
+            }
+        }
+    }
 
-            configPackBuilder.addNew(builder.build());
+    private void respondWithNextConfig(String tid, String region, StreamObserver<Telegraf.ConfigPack> responseObserver, IgniteQueue<String> queue, String configId, StoredRegionalConfig config) {
+        final Telegraf.ConfigPack.Builder configPackBuilder = Telegraf.ConfigPack.newBuilder();
+        final Telegraf.Config.Builder builder = Telegraf.Config.newBuilder()
+                .setId(config.getId())
+                .setTenantId(config.getTenantId())
+                .setDefinition(config.getDefinition());
 
+        if (config.getTitle() != null) {
+            builder.setTitle(config.getTitle());
+        }
+
+        configPackBuilder.addNew(builder.build());
+
+        try {
+            final Telegraf.ConfigPack configPack = configPackBuilder.build();
+            log.debug("Responding to {} with configPack={}", tid, configPack);
+            responseObserver.onNext(configPack);
+
+            final RunningKey key = new RunningKey(config.getId(), region);
+            log.debug("Noting initial application of {} to {}", key, tid);
+
+            try (Transaction tx = ignite.transactions().txStart()) {
+                runningCache.put(key, tid);
+                tx.commit();
+            }
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().equals(Status.CANCELLED)) {
+                log.debug("Re-queueing due to cancelled telegraf: {}", config);
+                queue.offer(configId);
+                log.debug("Farend {} cancelled stream", tid);
+            } else {
+                log.warn("Observed exception providing config pack to telegraf={}", tid, e);
+            }
             try {
-                final Telegraf.ConfigPack configPack = configPackBuilder.build();
-                log.debug("Responding to {} with configPack={}", tid, configPack);
-                responseObserver.onNext(configPack);
-
-                final RunningKey key = new RunningKey(config.getId(), region);
-                log.debug("Noting initial application of {} to {}", key, tid);
-
-                try (Transaction tx = ignite.transactions().txStart()) {
-                    appliedCache.put(key, tid);
-                    tx.commit();
-                }
-            } catch (StatusRuntimeException e) {
-                if (e.getStatus().equals(Status.CANCELLED)) {
-                    log.debug("Re-queueing due to cancelled telegraf: {}", config);
-                    queue.offer(config);
-                    log.debug("Farend {} cancelled stream", tid);
-                } else {
-                    log.warn("Observed exception providing config pack to telegraf={}", tid, e);
-                }
-                return;
-            }
+                close();
+            } catch (IOException e1) { }
         }
     }
 

@@ -9,9 +9,12 @@ angular.module("ConfigApp", [
                 templateUrl: 'views/list.html',
                 controller: 'ListController'
             })
-            .otherwise({
+            .when('/login', {
                 templateUrl: 'views/login.html',
                 controller: 'LoginController'
+            })
+            .otherwise({
+                redirectTo: '/login'
             });
     })
 
@@ -45,6 +48,10 @@ angular.module("ConfigApp", [
 
             remove: function(region, id) {
                 return $http.delete('/config/'+session.tenantId+'/'+region+'/'+id)
+            },
+
+            currentTenant: function() {
+                return session.tenantId;
             }
         }
     })
@@ -54,11 +61,11 @@ angular.module("ConfigApp", [
 
         $scope.login = function() {
             ConfigApi.login($scope.tenantId);
-            $location.url("/list");
+            $location.url('/list');
         }
     })
 
-    .controller('ListController', function($scope, $mdDialog, $mdToast, ConfigApi){
+    .controller('ListController', function($scope, $location, $mdDialog, $mdToast, ConfigApi){
 
         $scope.configs = [];
         function getConfigs(showToast) {
@@ -76,6 +83,8 @@ angular.module("ConfigApp", [
         $scope.reload = function() {
             getConfigs(true);
         };
+
+        $scope.configApi = ConfigApi;
 
         $scope.remove = function(c) {
             ConfigApi.remove(c.region, c.id).then(function success(resp) {
@@ -104,6 +113,10 @@ angular.module("ConfigApp", [
                         getConfigs();
                     })
             })
+        };
+
+        $scope.switchTenant = function() {
+            $location.url('/login');
         };
     })
 

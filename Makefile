@@ -6,8 +6,6 @@ swarm-up :
 
 swarm-down:
 	docker stack rm tremote
-	sleep 10
-	docker volume rm tremote_cassandra
 
 swarm-status:
 	docker stack ps tremote

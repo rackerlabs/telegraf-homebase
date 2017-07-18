@@ -80,16 +80,20 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
-    public CacheConfiguration<RunningKey,String> appliedConfigsCacheConfig() {
+    public CacheConfiguration<RunningKey,String> appliedConfigsCacheConfig(
+            QueryEntities runningQueryEntities
+    ) {
         final CacheConfiguration<RunningKey,String> config = new CacheConfiguration<>(CacheNames.RUNNING);
         config.setTypes(RunningKey.class, String.class);
         config.setExpiryPolicyFactory(TouchedExpiryPolicy.factoryOf(
-                new Duration(TimeUnit.SECONDS, properties.getAppliedConfigTtl())
+                new Duration(TimeUnit.SECONDS, properties.getRunningConfigTtl())
         ));
         config.setEagerTtl(true);
-        config.setBackups(properties.getAppliedConfigBackups());
+        config.setBackups(properties.getRunningConfigBackups());
         config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_SYNC);
         config.setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL);
+
+        config.setQueryEntities(runningQueryEntities.getQueryEntities());
 
         return config;
     }

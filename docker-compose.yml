@@ -34,7 +34,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: debug,docker
     deploy:
-      replicas: 1
+      replicas: 2
       update_config:
         parallelism: 1
         # allow time for ignite hand-off

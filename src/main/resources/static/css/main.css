@@ -33,3 +33,9 @@ textarea {
 .prop-table th {
     text-align: left;
 }
+
+.tenant-info {
+    margin-left: 5px;
+    padding-left: 5px;
+    border-left: solid 1px;
+}

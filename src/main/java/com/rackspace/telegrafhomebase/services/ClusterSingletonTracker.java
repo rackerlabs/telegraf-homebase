@@ -2,7 +2,6 @@ package com.rackspace.telegrafhomebase.services;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
-import org.apache.ignite.IgniteCluster;
 import org.apache.ignite.cluster.ClusterGroup;
 import org.apache.ignite.events.EventType;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,9 +46,7 @@ public class ClusterSingletonTracker {
     }
 
     private void checkLeadership() {
-        final IgniteCluster cluster = ignite.cluster();
-        if (cluster.forOldest().nodes().contains(cluster.localNode())) {
-            log.debug("Currently leader");
+        if (isLeader()) {
             if (actingSingleton.compareAndSet(false, true)) {
                 log.debug("Notifying about start transition");
                 try {
@@ -58,13 +55,22 @@ public class ClusterSingletonTracker {
                     log.warn("Failed to start event listening", e);
                 }
             }
+            else {
+                log.debug("Still leader");
+            }
         }
         else {
-            log.debug("Currently not leader");
             if (actingSingleton.compareAndSet(true, false)) {
                 log.debug("Notifying about stop transition");
                 configObserver.stopEventListening();
             }
+            else {
+                log.debug("Still not leader");
+            }
         }
+    }
+
+    public boolean isLeader() {
+        return ignite.cluster().forOldest().nodes().contains(ignite.cluster().localNode());
     }
 }

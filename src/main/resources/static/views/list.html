@@ -6,6 +6,10 @@
                 <md-button class="md-primary md-raised" ng-click="add()">Add</md-button>
                 <md-button ng-click="reload()">Reload</md-button>
             </div>
+            <div class="tenant-info">
+                <label>Tenant: {{configApi.currentTenant()}}</label>
+                <md-button ng-click="switchTenant()">Switch</md-button>
+            </div>
         </div>
     </md-toolbar>
 

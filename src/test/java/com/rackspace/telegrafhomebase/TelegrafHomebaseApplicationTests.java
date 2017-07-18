@@ -19,6 +19,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import remote.Telegraf;
 
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
@@ -33,10 +34,10 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "grpc.port=0",
-                "ignite.appliedConfigTtl=1",
+                "ignite.runningConfigTtl=1",
                 "ignite.storedConfigBackups=1",
-                "ignite.appliedConfigBackups=1",
-                "logging.level.com.rackspace.mmi.telegrafhomebase=debug"
+                "ignite.runningConfigBackups=1",
+                "logging.level.com.rackspace.telegrafhomebase=debug"
         })
 public class TelegrafHomebaseApplicationTests {
 
@@ -115,11 +116,11 @@ public class TelegrafHomebaseApplicationTests {
     }
 
     private static class OneTimeObserver implements Answer {
-        int count = 0;
+        AtomicInteger count = new AtomicInteger();
 
         @Override
         public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-            if (count++ > 0) {
+            if (count.getAndIncrement() > 0) {
                 throw new StatusRuntimeException(Status.CANCELLED);
             }
             return null;

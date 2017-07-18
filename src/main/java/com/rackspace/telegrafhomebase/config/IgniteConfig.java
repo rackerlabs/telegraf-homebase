@@ -73,18 +73,22 @@ public class IgniteConfig {
     public Ignite ignite() {
         final Ignite ignite = Ignition.start(igniteConfiguration());
 
+        setupQueues(ignite);
+
+        return ignite;
+    }
+
+    private void setupQueues(Ignite ignite) {
         telegrafProperties.getRegions().forEach(region -> {
             log.info("Registering pending config queue for region={}", region);
 
             final CollectionConfiguration collectionConfig = new CollectionConfiguration();
-            collectionConfig.setBackups(properties.appliedConfigBackups);
+            collectionConfig.setBackups(properties.getRunningConfigBackups());
 
             ignite.queue(DistributedQueueUtils.derivePendingConfigQueueName(region),
                          0,
                          collectionConfig);
         });
-
-        return ignite;
     }
 
     @Bean

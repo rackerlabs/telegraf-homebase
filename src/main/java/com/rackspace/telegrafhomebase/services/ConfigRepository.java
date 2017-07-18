@@ -81,11 +81,16 @@ public class ConfigRepository {
         }
     }
 
-    public StoredRegionalConfig getOne(String region, String id) {
+    public StoredRegionalConfig getWithDetails(String region, String id) {
         final StoredRegionalConfig storedRegionalConfig = regionalConfigCache.get(id);
+
         storedRegionalConfig.setRunningOn(runningCache.get(new RunningKey(id, region)));
 
         return storedRegionalConfig;
+    }
+
+    public StoredRegionalConfig get(String id) {
+        return regionalConfigCache.get(id);
     }
 
     public List<StoredRegionalConfig> getAllForTenant(String tenantId) {

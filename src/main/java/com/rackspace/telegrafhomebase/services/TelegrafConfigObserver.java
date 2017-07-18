@@ -26,7 +26,6 @@ public class TelegrafConfigObserver {
     private final Ignite ignite;
     private final IgniteCache<String, StoredRegionalConfig> storedCache;
     private final IgnitePredicate<Event> handler;
-    final IgniteQueue<StoredRegionalConfig> queue;
 
     @Autowired
     public TelegrafConfigObserver(Ignite ignite) {
@@ -34,10 +33,6 @@ public class TelegrafConfigObserver {
         storedCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
 
         this.handler = this::handle;
-        queue = ignite.queue(
-                DistributedQueueUtils.derivePendingConfigQueueName("west"),
-                0, null
-        );
     }
 
     void startEventListening() throws Exception {
@@ -103,15 +98,9 @@ public class TelegrafConfigObserver {
         final Object v = cacheEvent.newValue();
         if (v instanceof StoredRegionalConfig) {
             final StoredRegionalConfig storedRegionalConfig = (StoredRegionalConfig) v;
-//            if (!cacheEvent.hasOldValue()) {
-                //TODO: determine why two ignite threads see this same event
-                // such as sys-stripe-2-#3%null% and sys-#38%null%
-                log.debug("Saw new regional config: {}", storedRegionalConfig);
+            log.debug("Saw new regional config: {}", storedRegionalConfig);
 
-                addToQueue(storedRegionalConfig);
-//            } else {
-//                log.debug("Saw updated regional config: {}", storedRegionalConfig);
-//            }
+            addToQueue(storedRegionalConfig);
         } else {
             log.warn("Unexpected cache put type: {}", v.getClass());
         }
@@ -123,13 +112,13 @@ public class TelegrafConfigObserver {
             return;
         }
 
-//        final IgniteQueue<StoredRegionalConfig> queue = ignite.queue(
-//                DistributedQueueUtils.derivePendingConfigQueueName(storedRegionalConfig.getRegion()),
-//                0, null
-//        );
+        final IgniteQueue<String> queue = ignite.queue(
+                DistributedQueueUtils.derivePendingConfigQueueName(storedRegionalConfig.getRegion()),
+                0, null
+        );
 
         if (queue != null) {
-            queue.add(storedRegionalConfig);
+            queue.add(storedRegionalConfig.getId());
 
             log.debug("Queued {}", storedRegionalConfig);
         } else {

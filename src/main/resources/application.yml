@@ -12,7 +12,7 @@ logging:
 spring:
   profiles: debug
 logging.level:
-  com.rackspace.mmi.telegrafhomebase: debug
+  com.rackspace.telegrafhomebase: debug
 
 ---
 spring:
