@@ -9,6 +9,9 @@ services:
       - 9042:9042
     environment:
       CASSANDRA_SEEDS: cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "[ $$(nodetool statusgossip) = running ]"]
+      interval: 10s
 
   influxdb:
     image: influxdb

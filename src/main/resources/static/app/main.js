@@ -56,8 +56,8 @@ angular.module("ConfigApp", [
         }
     })
 
-    .controller('LoginController', function($scope, $location, ConfigApi){
-        $scope.tenantId = "ac-1";
+    .controller('LoginController', function($scope, $location, $routeParams, ConfigApi){
+        $scope.tenantId = $routeParams.tenant || "ac-1";
 
         $scope.login = function() {
             ConfigApi.login($scope.tenantId);
@@ -116,7 +116,7 @@ angular.module("ConfigApp", [
         };
 
         $scope.switchTenant = function() {
-            $location.url('/login');
+            $location.url('/login?tenant='+ConfigApi.currentTenant());
         };
     })
 

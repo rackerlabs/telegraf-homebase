@@ -1,7 +1,6 @@
 package com.rackspace.telegrafhomebase.services;
 
 import com.rackspace.telegrafhomebase.CacheNames;
-import com.rackspace.telegrafhomebase.model.RunningKey;
 import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
 import com.rackspace.telegrafhomebase.shared.DistributedQueueUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Geoff Bourne
@@ -24,15 +24,14 @@ import java.util.List;
 public class ConsistencyChecker {
 
     private final IgniteCache<String, StoredRegionalConfig> regionalConfigCache;
-    private final IgniteCache<RunningKey, String> runningCache;
     private final ClusterSingletonTracker clusterSingletonTracker;
     private final Ignite ignite;
+    private AtomicBoolean done = new AtomicBoolean();
 
     @Autowired
     public ConsistencyChecker(Ignite ignite, ClusterSingletonTracker clusterSingletonTracker) {
         this.ignite = ignite;
-        regionalConfigCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
-        runningCache = ignite.cache(CacheNames.RUNNING);
+        this.regionalConfigCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
         this.clusterSingletonTracker = clusterSingletonTracker;
     }
 
@@ -41,6 +40,11 @@ public class ConsistencyChecker {
     public void check() {
         if (!clusterSingletonTracker.isLeader()) {
             log.trace("Skipping consistency check on non-leader node");
+            return;
+        }
+
+        if (!done.compareAndSet(false, true)) {
+            log.trace("Already done");
             return;
         }
 
@@ -67,8 +71,10 @@ public class ConsistencyChecker {
             );
 
             if (queue != null) {
-                log.debug("Queueing non-running configId={} for region={}", configId, region);
-                queue.offer(configId);
+                if (queue.isEmpty()) {
+                    log.debug("Queueing non-running configId={} for region={}", configId, region);
+                    queue.offer(configId);
+                }
             }
             else {
                 log.warn("Queue is not configured for region={} referenced by configId={}", region, configId);
