@@ -2,7 +2,7 @@ package com.rackspace.telegrafhomebase.services;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
-import org.apache.ignite.cluster.ClusterGroup;
+import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.events.EventType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -23,13 +23,14 @@ public class ClusterSingletonTracker {
     private final Ignite ignite;
     private final TelegrafConfigObserver configObserver;
     private final AtomicBoolean actingSingleton = new AtomicBoolean();
+    private final ClusterNode localNode;
 
     @Autowired
     public ClusterSingletonTracker(Ignite ignite, TelegrafConfigObserver configObserver) {
         this.ignite = ignite;
         this.configObserver = configObserver;
 
-        final ClusterGroup leaderGroup = ignite.cluster().forOldest();
+        localNode = ignite.cluster().localNode();
     }
 
     @PostConstruct
@@ -71,6 +72,17 @@ public class ClusterSingletonTracker {
     }
 
     public boolean isLeader() {
-        return ignite.cluster().forOldest().nodes().contains(ignite.cluster().localNode());
+        try {
+            return ignite.cluster().forOldest().nodes().contains(localNode);
+        } catch (IllegalStateException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Unable to compute leadership at this time", e);
+            }
+            else {
+                log.warn("Unable to compute leadership at this time");
+            }
+
+            return false;
+        }
     }
 }

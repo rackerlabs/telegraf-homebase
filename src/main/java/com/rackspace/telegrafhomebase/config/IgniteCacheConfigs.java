@@ -55,12 +55,13 @@ public class IgniteCacheConfigs {
                 new CacheConfiguration<>(CacheNames.REGIONAL_CONFIG);
         config.setTypes(String.class, StoredRegionalConfig.class);
         config.setBackups(properties.getStoredConfigBackups());
-        config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_SYNC);
+        config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_ASYNC);
         config.setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL);
 
         if (cassandraProperties.enabled()) {
             config.setWriteThrough(true);
             config.setReadThrough(true);
+            config.setWriteBehindEnabled(true);
 
             final KeyValuePersistenceSettings persistenceSettings =
                     new KeyValuePersistenceSettings(new ClassPathResource(
@@ -80,7 +81,7 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
-    public CacheConfiguration<RunningKey,String> appliedConfigsCacheConfig(
+    public CacheConfiguration<RunningKey,String> runningCacheConfig(
             QueryEntities runningQueryEntities
     ) {
         final CacheConfiguration<RunningKey,String> config = new CacheConfiguration<>(CacheNames.RUNNING);
@@ -90,10 +91,21 @@ public class IgniteCacheConfigs {
         ));
         config.setEagerTtl(true);
         config.setBackups(properties.getRunningConfigBackups());
-        config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_SYNC);
+        config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_ASYNC);
         config.setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL);
 
         config.setQueryEntities(runningQueryEntities.getQueryEntities());
+
+        return config;
+    }
+
+    @Bean
+    public CacheConfiguration<String/*stored config id*/, Boolean> queuedCacheConfig() {
+        CacheConfiguration<String, Boolean> config = new CacheConfiguration<>(CacheNames.QUEUED);
+
+        config.setTypes(String.class, Boolean.class);
+        config.setBackups(properties.getRunningConfigBackups());
+        config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_ASYNC);
 
         return config;
     }

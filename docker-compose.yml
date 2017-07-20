@@ -29,6 +29,7 @@ services:
       - 8083:8080
     environment:
       SPRING_PROFILES_ACTIVE: debug,docker
+      JAVA_TOOL_OPTIONS: -XX:+UseG1GC -Xms512m -Xmx1g -XX:MaxDirectMemorySize=1g -XX:+DisableExplicitGC
     deploy:
       replicas: 2
       update_config:

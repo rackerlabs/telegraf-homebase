@@ -3,11 +3,9 @@ package com.rackspace.telegrafhomebase.services;
 import com.rackspace.telegrafhomebase.CacheNames;
 import com.rackspace.telegrafhomebase.model.RunningKey;
 import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
-import com.rackspace.telegrafhomebase.shared.DistributedQueueUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
-import org.apache.ignite.IgniteQueue;
 import org.apache.ignite.binary.BinaryObject;
 import org.apache.ignite.events.CacheEvent;
 import org.apache.ignite.events.Event;
@@ -16,21 +14,27 @@ import org.apache.ignite.lang.IgnitePredicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 /**
  * @author Geoff Bourne
  * @since Jul 2017
  */
 @Component
 @Slf4j
-public class TelegrafConfigObserver {
+public class TelegrafConfigObserver implements Closeable {
     private final Ignite ignite;
     private final IgniteCache<String, StoredRegionalConfig> storedCache;
+    private final PendingConfigQueuer pendingConfigQueuer;
     private final IgnitePredicate<Event> handler;
+    private boolean closed;
 
     @Autowired
-    public TelegrafConfigObserver(Ignite ignite) {
+    public TelegrafConfigObserver(Ignite ignite, PendingConfigQueuer pendingConfigQueuer) {
         this.ignite = ignite;
         storedCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
+        this.pendingConfigQueuer = pendingConfigQueuer;
 
         this.handler = this::handle;
     }
@@ -53,10 +57,12 @@ public class TelegrafConfigObserver {
         ignite.events().stopLocalListen(handler,
                                         EventType.EVT_CACHE_OBJECT_PUT,
                                         EventType.EVT_CACHE_OBJECT_EXPIRED);
+
+        closed = true;
     }
 
     private boolean handle(Event e) {
-        log.debug("Handling event={}", e);
+        log.trace("Handling event={}", e);
 
         if (e instanceof CacheEvent) {
             final CacheEvent cacheEvent = (CacheEvent) e;
@@ -72,10 +78,15 @@ public class TelegrafConfigObserver {
                         handleAppliedConfigExpiration(cacheEvent);
                     }
                     break;
+                default:
+                    log.trace("Ignoring {}", e);
             }
         }
+        else {
+            log.trace("Ignoring {}", e);
+        }
 
-        return true;
+        return !closed;
     }
 
     private void handleAppliedConfigExpiration(CacheEvent cacheEvent) {
@@ -91,7 +102,7 @@ public class TelegrafConfigObserver {
         final StoredRegionalConfig storedRegionalConfig = storedCache.get(key.getId());
 
         log.info("Re-queueing regional config: {}", storedRegionalConfig);
-        addToQueue(storedRegionalConfig);
+        addToQueue(storedRegionalConfig, true);
     }
 
     private void handleConfigPut(CacheEvent cacheEvent) {
@@ -100,29 +111,23 @@ public class TelegrafConfigObserver {
             final StoredRegionalConfig storedRegionalConfig = (StoredRegionalConfig) v;
             log.debug("Saw new regional config: {}", storedRegionalConfig);
 
-            addToQueue(storedRegionalConfig);
+            addToQueue(storedRegionalConfig, false);
         } else {
             log.warn("Unexpected cache put type: {}", v.getClass());
         }
     }
 
-    private void addToQueue(StoredRegionalConfig storedRegionalConfig) {
+    private void addToQueue(StoredRegionalConfig storedRegionalConfig, boolean force) {
         if (storedRegionalConfig == null) {
             log.warn("Trying to queue null entry");
             return;
         }
 
-        final IgniteQueue<String> queue = ignite.queue(
-                DistributedQueueUtils.derivePendingConfigQueueName(storedRegionalConfig.getRegion()),
-                0, null
-        );
+        pendingConfigQueuer.offer(storedRegionalConfig.getRegion(), storedRegionalConfig.getId(), force);
+    }
 
-        if (queue != null) {
-            queue.add(storedRegionalConfig.getId());
-
-            log.debug("Queued {}", storedRegionalConfig);
-        } else {
-            log.warn("Region={} was not previously registered for queueing", storedRegionalConfig.getRegion());
-        }
+    @Override
+    public void close() throws IOException {
+        closed = true;
     }
 }

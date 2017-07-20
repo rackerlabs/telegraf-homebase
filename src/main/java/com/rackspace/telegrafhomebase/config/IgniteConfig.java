@@ -1,12 +1,10 @@
 package com.rackspace.telegrafhomebase.config;
 
-import com.rackspace.telegrafhomebase.shared.DistributedQueueUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.Ignition;
 import org.apache.ignite.cache.spring.SpringCacheManager;
 import org.apache.ignite.configuration.CacheConfiguration;
-import org.apache.ignite.configuration.CollectionConfiguration;
 import org.apache.ignite.configuration.IgniteConfiguration;
 import org.apache.ignite.events.EventType;
 import org.apache.ignite.spi.discovery.DiscoverySpi;
@@ -73,22 +71,7 @@ public class IgniteConfig {
     public Ignite ignite() {
         final Ignite ignite = Ignition.start(igniteConfiguration());
 
-        setupQueues(ignite);
-
         return ignite;
-    }
-
-    private void setupQueues(Ignite ignite) {
-        telegrafProperties.getRegions().forEach(region -> {
-            log.info("Registering pending config queue for region={}", region);
-
-            final CollectionConfiguration collectionConfig = new CollectionConfiguration();
-            collectionConfig.setBackups(properties.getRunningConfigBackups());
-
-            ignite.queue(DistributedQueueUtils.derivePendingConfigQueueName(region),
-                         0,
-                         collectionConfig);
-        });
     }
 
     @Bean

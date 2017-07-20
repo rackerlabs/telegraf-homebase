@@ -3,16 +3,12 @@ package com.rackspace.telegrafhomebase.services;
 import com.rackspace.telegrafhomebase.CacheNames;
 import com.rackspace.telegrafhomebase.model.RunningKey;
 import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
-import com.rackspace.telegrafhomebase.shared.DistributedQueueUtils;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
-import org.apache.ignite.IgniteException;
-import org.apache.ignite.IgniteInterruptedException;
-import org.apache.ignite.IgniteQueue;
 import org.apache.ignite.transactions.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,13 +28,17 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
     private final Ignite ignite;
     private final IgniteCache<RunningKey, String> runningCache;
     private final ConfigRepository configRepository;
+    private final PendingConfigQueuer pendingConfigQueuer;
     private boolean closed;
 
     @Autowired
-    public ConfigPackResponderImpl(Ignite ignite, ConfigRepository configRepository) {
+    public ConfigPackResponderImpl(Ignite ignite,
+                                   ConfigRepository configRepository,
+                                   PendingConfigQueuer pendingConfigQueuer) {
         this.ignite = ignite;
         runningCache = ignite.cache(CacheNames.RUNNING);
         this.configRepository = configRepository;
+        this.pendingConfigQueuer = pendingConfigQueuer;
     }
 
     @Override
@@ -46,47 +46,32 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
         log.debug("Setting up config pack provider for telegraf={} in region={}",
                   tid, region);
 
-        final IgniteQueue<String> queue;
-        try {
-            queue = ignite.queue(DistributedQueueUtils.derivePendingConfigQueueName(
-                    region),
-                                 0, null);
+        pendingConfigQueuer.observe(region, new PendingConfigQueuer.Handler() {
+            @Override
+            public boolean handle(String configId) {
+                final StoredRegionalConfig config = configRepository.get(configId);
 
-        } catch (Exception e) {
-            log.warn("Unexpected exception while locating queue", e);
-            responseObserver.onError(new IllegalStateException("Unexpected exception while locating queue"));
-            return;
-        }
+                if (config != null) {
+                    respondWithNextConfig(tid, region, responseObserver, configId, config);
+                } else {
+                    log.warn("Saw configId={} in pending queue, but no corresponding config object", configId);
+                }
 
-        while (!closed) {
-            log.debug("Waiting for next pending config");
-
-            final String configId;
-            try {
-                configId = queue.take();
-            } catch (IgniteInterruptedException e) {
-                log.warn("Interrupted during queue take, should happen only during shutdown");
-                return;
-            } catch (IgniteException e) {
-                log.warn("Unexpceted exception while taking from pending config queue", e);
-                responseObserver.onError(new IllegalStateException(
-                        "Unexpected exception while taking from pending config queue"));
-                return;
+                return !closed;
             }
-            log.debug("Acquired next configuration in queue={}", configId);
 
-            final StoredRegionalConfig config = configRepository.get(configId);
-
-            if (config != null) {
-                respondWithNextConfig(tid, region, responseObserver, queue, configId, config);
+            @Override
+            public void onError(Throwable throwable) {
+                responseObserver.onError(throwable);
             }
-            else {
-                log.warn("Saw configId={} in pending queue, but no corresponding config object", configId);
-            }
-        }
+        });
     }
 
-    private void respondWithNextConfig(String tid, String region, StreamObserver<Telegraf.ConfigPack> responseObserver, IgniteQueue<String> queue, String configId, StoredRegionalConfig config) {
+    private void respondWithNextConfig(String tid,
+                                       String region,
+                                       StreamObserver<Telegraf.ConfigPack> responseObserver,
+                                       String configId,
+                                       StoredRegionalConfig config) {
         final Telegraf.ConfigPack.Builder configPackBuilder = Telegraf.ConfigPack.newBuilder();
         final Telegraf.Config.Builder builder = Telegraf.Config.newBuilder()
                 .setId(config.getId())
@@ -114,14 +99,15 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
         } catch (StatusRuntimeException e) {
             if (e.getStatus().equals(Status.CANCELLED)) {
                 log.debug("Re-queueing due to cancelled telegraf: {}", config);
-                queue.offer(configId);
+                pendingConfigQueuer.offer(region, configId);
                 log.debug("Farend {} cancelled stream", tid);
             } else {
                 log.warn("Observed exception providing config pack to telegraf={}", tid, e);
             }
             try {
                 close();
-            } catch (IOException e1) { }
+            } catch (IOException e1) {
+            }
         }
     }
 
