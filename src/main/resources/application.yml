@@ -9,14 +9,16 @@ logging:
     org.apache.ignite.spi.discovery.tcp.ipfinder.zk.TcpDiscoveryZookeeperIpFinder: warn
 
 ---
-spring:
-  profiles: debug
+spring.profiles: debug
 logging.level:
   com.rackspace.telegrafhomebase: debug
 
 ---
+spring.profiles: docker
 spring:
-  profiles: docker
+  profiles:
+    include:
+     - CassandraCacheStore
 ignite:
   zk-connection: zookeeper:2181
 cassandra:

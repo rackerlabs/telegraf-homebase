@@ -5,16 +5,14 @@ import com.rackspace.telegrafhomebase.model.RunningKey;
 import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
 import org.apache.ignite.cache.CacheAtomicityMode;
 import org.apache.ignite.cache.CacheWriteSynchronizationMode;
-import org.apache.ignite.cache.store.cassandra.CassandraCacheStoreFactory;
-import org.apache.ignite.cache.store.cassandra.datasource.DataSource;
-import org.apache.ignite.cache.store.cassandra.persistence.KeyValuePersistenceSettings;
+import org.apache.ignite.cache.store.cassandra.CassandraCacheStore;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportResource;
-import org.springframework.core.io.ClassPathResource;
 
+import javax.cache.configuration.Factory;
 import javax.cache.expiry.Duration;
 import javax.cache.expiry.TouchedExpiryPolicy;
 import java.util.concurrent.TimeUnit;
@@ -30,26 +28,17 @@ import java.util.concurrent.TimeUnit;
 })
 public class IgniteCacheConfigs {
     private final IgniteProperties properties;
-    private final CassandraProperties cassandraProperties;
 
     @Autowired
-    public IgniteCacheConfigs(IgniteProperties properties, CassandraProperties cassandraProperties) {
+    public IgniteCacheConfigs(IgniteProperties properties) {
         this.properties = properties;
-        this.cassandraProperties = cassandraProperties;
-    }
-
-    @Bean
-    public DataSource igniteCassandraDataSource() {
-        final DataSource dataSource = new DataSource();
-
-        dataSource.setContactPoints(cassandraProperties.getContactPoints());
-
-        return dataSource;
     }
 
     @Bean
     public CacheConfiguration<String,StoredRegionalConfig> regionalConfigCacheConfig(
-            QueryEntities storedRegionalConfigQueryEntities
+            QueryEntities storedRegionalConfigQueryEntities,
+            @Autowired(required = false)
+            Factory<CassandraCacheStore<String, StoredRegionalConfig>> cacheStoreFactory
     ) {
         final CacheConfiguration<String,StoredRegionalConfig> config =
                 new CacheConfiguration<>(CacheNames.REGIONAL_CONFIG);
@@ -58,19 +47,10 @@ public class IgniteCacheConfigs {
         config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_ASYNC);
         config.setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL);
 
-        if (cassandraProperties.enabled()) {
+        if (cacheStoreFactory != null) {
             config.setWriteThrough(true);
             config.setReadThrough(true);
             config.setWriteBehindEnabled(true);
-
-            final KeyValuePersistenceSettings persistenceSettings =
-                    new KeyValuePersistenceSettings(new ClassPathResource(
-                    "persistence-StoredRegionalConfig.xml"));
-
-            final CassandraCacheStoreFactory<String, StoredRegionalConfig> cacheStoreFactory =
-                    new CassandraCacheStoreFactory<>();
-            cacheStoreFactory.setDataSource(igniteCassandraDataSource());
-            cacheStoreFactory.setPersistenceSettings(persistenceSettings);
 
             config.setCacheStoreFactory(cacheStoreFactory);
         }

@@ -51,3 +51,9 @@ The stack can be stopped using
 ```bash
 make swarm-down
 ```
+
+## Screenshots
+
+#### Example of an HTTP response input configured and allocated
+
+![](docs/example-managed-inputs.png)
