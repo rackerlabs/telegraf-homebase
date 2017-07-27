@@ -19,6 +19,15 @@ cd $GOPATH/src/github.com/influxdata/telegraf
 make local-image
 ```
 
+## Running just Homebase
+
+To get up and running with a local instance of homebase you can either start it up in your IDE of choice or
+run it via the integrated Spring Boot maven plugin:
+
+```bash
+./mvnw spring-boot:run
+```
+
 ## Trying it out in Docker Swarm
 
 With the required Telegraf code built as a local image (see above), build a local image of homebase using:
@@ -54,6 +63,10 @@ make swarm-down
 
 ## Screenshots
 
-#### Example of an HTTP response input configured and allocated
+#### HTTP response inputs configured and allocated for two regions
 
 ![](docs/example-managed-inputs.png)
+
+#### Configuring an HTTP response input
+
+![](docs/example-config-input.png)

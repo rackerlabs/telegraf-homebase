@@ -106,8 +106,15 @@ public class PendingConfigQueuer {
 
         boolean proceed = true;
         while (proceed) {
-            log.debug("Waiting for next pending config");
 
+            try {
+                proceed = handler.waitForReady();
+            } catch (InterruptedException e) {
+                log.debug("Interrupted", e);
+                continue;
+            }
+
+            log.debug("Waiting for next pending config");
             final String configId;
             try {
                 configId = queue.take();
@@ -135,5 +142,7 @@ public class PendingConfigQueuer {
         boolean handle(String configId);
 
         void onError(Throwable throwable);
+
+        boolean waitForReady() throws InterruptedException;
     }
 }

@@ -15,5 +15,8 @@ import java.util.List;
 @Component
 public class TelegrafProperties {
 
+    /**
+     * Defines the allowed/expected regions where remote telegrafs will be originating their contact with us.
+     */
     List<String> regions;
 }
