@@ -25,7 +25,7 @@
         <grpc.version>1.4.0</grpc.version>
         <!-- this version of grps-spring-boot does/needs to align with grpc version -->
         <grpc-spring-boot.version>2.0.4</grpc-spring-boot.version>
-        <ignite.version>2.0.0</ignite.version>
+        <ignite.version>2.1.0</ignite.version>
         <guava.version>18.0</guava.version>
         <spring-data-cassandra.version>2.0.0.M4</spring-data-cassandra.version>
     </properties>
