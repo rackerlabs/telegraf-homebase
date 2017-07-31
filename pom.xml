@@ -30,6 +30,7 @@
         <spring-data-cassandra.version>2.0.0.M4</spring-data-cassandra.version>
         <angularjs.version>1.6.5</angularjs.version>
         <angularjs-material.version>1.1.4</angularjs-material.version>
+        <angular-ui-router.version>1.0.3</angular-ui-router.version>
     </properties>
 
 	<dependencies>
@@ -181,8 +182,8 @@
         </dependency>
         <dependency>
             <groupId>org.webjars.npm</groupId>
-            <artifactId>angular-route</artifactId>
-            <version>${angularjs.version}</version>
+            <artifactId>angular-ui-router</artifactId>
+            <version>${angular-ui-router.version}</version>
         </dependency>
         <dependency>
             <groupId>org.webjars.npm</groupId>

@@ -1,21 +1,33 @@
 angular.module("ConfigApp", [
-    'ngRoute',
+    'ui.router',
     'ngMaterial'
 ])
 
-    .config(function($routeProvider, $locationProvider) {
-        $routeProvider
-            .when('/list', {
-                templateUrl: 'views/list.html',
-                controller: 'ListController'
-            })
-            .when('/login', {
-                templateUrl: 'views/login.html',
-                controller: 'LoginController'
-            })
-            .otherwise({
-                redirectTo: '/login'
-            });
+    .config(function($stateProvider, $urlRouterProvider) {
+
+        var loginState = {
+            name: 'login',
+            url: '/login',
+            templateUrl: 'views/login.html',
+            controller: 'LoginController'
+        };
+
+        var listState = {
+            name: 'list',
+            url: '/list',
+            templateUrl: 'views/list.html',
+            controller: 'ListController'
+        };
+
+        $stateProvider.state(loginState);
+        $stateProvider.state(listState);
+
+        $urlRouterProvider.when('', '/login');
+    })
+
+    .config(function($compileProvider) {
+        // will be removed in 1.7.0
+        $compileProvider.preAssignBindingsEnabled(true);
     })
 
     .factory('ConfigApi', function($http) {
@@ -56,16 +68,16 @@ angular.module("ConfigApp", [
         }
     })
 
-    .controller('LoginController', function($scope, $location, $routeParams, ConfigApi){
-        $scope.tenantId = $routeParams.tenant || "ac-1";
+    .controller('LoginController', function($scope, $state, ConfigApi){
+        $scope.tenantId = ConfigApi.currentTenant();
 
         $scope.login = function() {
             ConfigApi.login($scope.tenantId);
-            $location.url('/list');
+            $state.go('list')
         }
     })
 
-    .controller('ListController', function($scope, $location, $mdDialog, $mdToast, ConfigApi){
+    .controller('ListController', function($scope, $mdDialog, $mdToast, ConfigApi){
 
         $scope.configs = [];
         function getConfigs(showToast) {
@@ -113,10 +125,6 @@ angular.module("ConfigApp", [
                         getConfigs();
                     })
             })
-        };
-
-        $scope.switchTenant = function() {
-            $location.url('/login?tenant='+ConfigApi.currentTenant());
         };
     })
 
