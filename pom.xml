@@ -28,6 +28,8 @@
         <ignite.version>2.1.0</ignite.version>
         <guava.version>18.0</guava.version>
         <spring-data-cassandra.version>2.0.0.M4</spring-data-cassandra.version>
+        <angularjs.version>1.6.5</angularjs.version>
+        <angularjs-material.version>1.1.4</angularjs-material.version>
     </properties>
 
 	<dependencies>
@@ -152,6 +154,41 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>webjars-locator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>angular</artifactId>
+            <version>${angularjs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>angular-animate</artifactId>
+            <version>${angularjs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>angular-aria</artifactId>
+            <version>${angularjs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>angular-messages</artifactId>
+            <version>${angularjs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>angular-route</artifactId>
+            <version>${angularjs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>angular-material</artifactId>
+            <version>${angularjs-material.version}</version>
+        </dependency>
 	</dependencies>
 
 	<build>
