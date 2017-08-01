@@ -53,7 +53,7 @@ That stack includes:
 
 Homebase has a simple web UI that is accessible at any of the swarm nodes at port **8083**.
 
-Grafana is available at port **3000** at any of the swarm nodes.
+Grafana is available at port **3000** at any of the swarm nodes. The default login for grafana is `admin`/`admin`.
 
 The stack can be stopped using
 
