@@ -3,11 +3,14 @@ version: '3'
 services:
   zookeeper:
     image: jplock/zookeeper
+    volumes:
+      - ${PWD}/config/zookeeper-java.env:/opt/zookeeper/conf/java.env
 
   cassandra:
     image: cassandra:3.0
     volumes:
       - cassandra:/var/lib/cassandra
+      - ${PWD}/config/cassandra-jvm.options:/etc/cassandra/jvm.options
     healthcheck:
       test: ["CMD-SHELL", "[ $$(nodetool statusgossip) = running ]"]
       interval: 10s
@@ -29,7 +32,7 @@ services:
       - 8083:8080
     environment:
       SPRING_PROFILES_ACTIVE: debug,docker
-      JAVA_TOOL_OPTIONS: -XX:+UseG1GC -Xms512m -Xmx1g -XX:MaxDirectMemorySize=1g -XX:+DisableExplicitGC
+      JAVA_TOOL_OPTIONS: -XX:+UseG1GC -Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m -XX:+DisableExplicitGC
     deploy:
       replicas: 2
       update_config:
@@ -42,10 +45,20 @@ services:
     volumes:
       - influxdb:/var/lib/influxdb
 
+  postgres:
+    image: postgres:9.6-alpine
+    environment:
+      POSTGRES_PASSWORD:
+      POSTGRES_DB: grafana
+    volumes:
+      - postgres:/var/lib/postgresql
+
   grafana:
     image: grafana/grafana
     ports:
       - 3000:3000
+    environment:
+      GF_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/grafana
 
 volumes:
   cassandra:
