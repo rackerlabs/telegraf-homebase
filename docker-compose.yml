@@ -39,6 +39,8 @@ services:
 
   influxdb:
     image: influxdb
+    volumes:
+      - influxdb:/var/lib/influxdb
 
   grafana:
     image: grafana/grafana
@@ -47,3 +49,5 @@ services:
 
 volumes:
   cassandra:
+  postgres:
+  influxdb:
