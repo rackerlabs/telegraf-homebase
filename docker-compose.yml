@@ -42,6 +42,8 @@ services:
 
   influxdb:
     image: influxdb
+    volumes:
+      - influxdb:/var/lib/influxdb
 
   postgres:
     image: postgres:9.6-alpine
@@ -61,3 +63,4 @@ services:
 volumes:
   cassandra:
   postgres:
+  influxdb:
