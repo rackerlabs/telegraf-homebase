@@ -1,8 +1,9 @@
 local-image:
 	docker build -t local/homebase .
 
+#TODO: externally configure the POSTGRES_PASSWORD
 swarm-up :
-	docker stack deploy -c docker-compose.yml tremote
+	POSTGRES_PASSWORD=secret docker stack deploy -c docker-compose.yml tremote
 
 swarm-down:
 	docker stack rm tremote
