@@ -10,6 +10,10 @@ logging:
 
 ---
 spring.profiles: debug
+spring:
+  profiles:
+    include:
+     - docs
 logging.level:
   com.rackspace.telegrafhomebase: debug
 
@@ -19,6 +23,7 @@ spring:
   profiles:
     include:
      - CassandraCacheStore
+     - docs
 ignite:
   zk-connection: zookeeper:2181
 cassandra:
