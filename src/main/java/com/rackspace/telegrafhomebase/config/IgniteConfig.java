@@ -49,6 +49,7 @@ public class IgniteConfig {
     @Bean
     public IgniteConfiguration igniteConfiguration() {
         final IgniteConfiguration configuration = new IgniteConfiguration();
+        configuration.setNetworkTimeout(properties.getNetworkTimeout());
 
         configuration.setCacheConfiguration(cacheConfigs);
 
