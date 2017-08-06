@@ -8,19 +8,26 @@ service TelegrafRemote {
     rpc ReportState (CurrentState) returns (CurrentStateResponse) {};
 }
 
-message Greeting {
+message Identifiers {
     // The identifier of this running instance of remote telegraf
     string tid = 1;
 
+    // Optionally indicates that this is a telegraf that operates in a region on behalf of multi-tenants
     string region = 2;
+    // Optionally indicates that this is a telegraf situated on a specific tenant's node
+    string tenant = 3;
+}
+
+message Greeting {
+    Identifiers identifiers = 1;
+
+    map<string,string> nodeTag = 2;
 }
 
 message CurrentState {
-    // The identifier of this running instance of remote telegraf
-    string tid = 1;
-    string region = 2;
+    Identifiers identifiers = 1;
 
-    repeated string activeConfigIds = 3;
+    repeated string activeConfigIds = 2;
 }
 
 message CurrentStateResponse {

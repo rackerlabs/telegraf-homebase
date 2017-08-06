@@ -1,5 +1,6 @@
 package com.rackspace.telegrafhomebase;
 
+import com.rackspace.telegrafhomebase.model.RegionalInputDefinition;
 import com.rackspace.telegrafhomebase.services.ConfigPackResponder;
 import com.rackspace.telegrafhomebase.services.ConfigRepository;
 import com.rackspace.telegrafhomebase.services.IdCreator;
@@ -19,6 +20,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import remote.Telegraf;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.empty;
@@ -35,8 +37,9 @@ import static org.mockito.Mockito.when;
         properties = {
                 "grpc.port=0",
                 "ignite.runningConfigTtl=1",
-                "ignite.storedConfigBackups=1",
-                "ignite.runningConfigBackups=1",
+                "ignite.managedInputsCacheBackups=1",
+                "ignite.runningConfigCacheBackups=1",
+                "homebase.initialConsistencyCheckDelay=5",
                 "logging.level.com.rackspace.telegrafhomebase=debug"
         })
 public class TelegrafHomebaseApplicationTests {
@@ -53,13 +56,18 @@ public class TelegrafHomebaseApplicationTests {
     @Autowired
     TelegrafWellBeingHandler wellBeingHandler;
 
+    @SuppressWarnings("unchecked")
     @Test
     public void basicEndToEnd() throws InterruptedException {
 
         when(idCreator.create())
                 .thenReturn("id-1");
 
-        configRepository.createRegional("ac-1", "west", "JUST A TEST", "Testing");
+        final RegionalInputDefinition definition = new RegionalInputDefinition();
+        definition.setRegions(Collections.singletonList("west"));
+        definition.setText("JUST A TEST");
+        definition.setTitle("Testing");
+        configRepository.createRemote("ac-1", definition);
 
         StreamObserver<Telegraf.ConfigPack> observer1 = Mockito.mock(StreamObserver.class);
         doAnswer(new OneTimeObserver())
@@ -69,7 +77,12 @@ public class TelegrafHomebaseApplicationTests {
         doAnswer(new OneTimeObserver())
                 .when(observer2).onNext(any());
 
-        configPackResponder.startConfigStreaming("t-1", "west", observer1);
+        final Map<String, String> nodeTags = Collections.emptyMap();
+        final Telegraf.Identifiers identifiers1 = Telegraf.Identifiers.newBuilder()
+                .setTid("t-1")
+                .setRegion("west")
+                .build();
+        configPackResponder.startConfigStreaming(identifiers1, nodeTags, observer1);
 
         Telegraf.Config expectedConfig = Telegraf.Config.newBuilder()
                 .setId("id-1")
@@ -85,11 +98,14 @@ public class TelegrafHomebaseApplicationTests {
                 .onNext(expectedConfigPack);
 
         // now start a second "remote telegraf"
-        configPackResponder.startConfigStreaming("t-2", "west", observer2);
+        final Telegraf.Identifiers identifiers2 = Telegraf.Identifiers.newBuilder()
+                .setTid("t-2")
+                .setRegion("west")
+                .build();
+        configPackResponder.startConfigStreaming(identifiers2, nodeTags, observer2);
 
         Thread.sleep(10);
-        final Telegraf.CurrentStateResponse normalResp = wellBeingHandler.confirmState("t-1",
-                                                                                       "west",
+        final Telegraf.CurrentStateResponse normalResp = wellBeingHandler.confirmState(identifiers1,
                                                                                        Collections.singletonList("id-1"));
         assertThat(normalResp.getRemovedIdList(), empty());
 
@@ -101,15 +117,13 @@ public class TelegrafHomebaseApplicationTests {
                 .onNext(expectedConfigPack);
 
         // ...but if t-1 comes back and reports it, tell it to remove
-        final Telegraf.CurrentStateResponse nowRemovedResp = wellBeingHandler.confirmState("t-1",
-                                                                                           "west",
+        final Telegraf.CurrentStateResponse nowRemovedResp = wellBeingHandler.confirmState(identifiers1,
                                                                                            Collections.singletonList(
                                                                                                    "id-1"));
         assertThat(nowRemovedResp.getRemovedIdList(), hasSize(1));
 
         // ...and sanity check a status update from t-2
-        final Telegraf.CurrentStateResponse normalResp2 = wellBeingHandler.confirmState("t-2",
-                                                                                        "west",
+        final Telegraf.CurrentStateResponse normalResp2 = wellBeingHandler.confirmState(identifiers2,
                                                                                         Collections.singletonList("id-1"));
         assertThat(normalResp2.getRemovedIdList(), empty());
 

@@ -19,7 +19,9 @@ services:
     image: local/telegraf
     volumes:
       - ${PWD}/config/telegraf.conf:/etc/telegraf/telegraf.conf
-    command: --remote-config=homebase:6565 --region=${REGION:-west}
+    command: --remote-config=homebase:6565
+    environment:
+      REGION: west
     deploy:
       replicas: 2
       update_config:

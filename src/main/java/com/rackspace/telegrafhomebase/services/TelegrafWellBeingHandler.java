@@ -1,8 +1,8 @@
 package com.rackspace.telegrafhomebase.services;
 
-import com.rackspace.telegrafhomebase.CacheNames;
-import com.rackspace.telegrafhomebase.model.RunningKey;
-import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
+import com.rackspace.telegrafhomebase.config.IgniteCacheProvider;
+import com.rackspace.telegrafhomebase.model.ManagedInput;
+import com.rackspace.telegrafhomebase.model.RunningRemoteInputKey;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
@@ -21,18 +21,21 @@ import java.util.List;
 @Service @Slf4j
 public class TelegrafWellBeingHandler {
 
-    private final IgniteCache<RunningKey, String> runningCache;
-    private final IgniteCache<String, StoredRegionalConfig> storedCache;
+    private final IgniteCache<RunningRemoteInputKey, String> runningCache;
+    private final IgniteCache<String, ManagedInput> storedCache;
     private final IgniteTransactions igniteTransactions;
 
     @Autowired
-    public TelegrafWellBeingHandler(Ignite ignite) {
-        runningCache = ignite.cache(CacheNames.RUNNING);
-        storedCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
+    public TelegrafWellBeingHandler(Ignite ignite, IgniteCacheProvider cacheProvider) {
+        runningCache = cacheProvider.runningInputsCache();
+        storedCache = cacheProvider.managedInputsCache();
         igniteTransactions = ignite.transactions();
     }
 
-    public Telegraf.CurrentStateResponse confirmState(String tid, String region, List<String> activeConfigIdsList) {
+    public Telegraf.CurrentStateResponse confirmState(Telegraf.Identifiers identifiers, List<String> activeConfigIdsList) {
+        final String tid = identifiers.getTid();
+        final String region = identifiers.getRegion();
+
         log.debug("Got keep alive from telegraf={}, activeConfigIds={}", tid, activeConfigIdsList);
 
         Telegraf.CurrentStateResponse.Builder resp = Telegraf.CurrentStateResponse.newBuilder();
@@ -40,23 +43,23 @@ public class TelegrafWellBeingHandler {
         try (Transaction tx = igniteTransactions.txStart()) {
 
             activeConfigIdsList.forEach(configId -> {
-                final RunningKey runningKey = new RunningKey(configId, region);
+                final RunningRemoteInputKey runningKey = new RunningRemoteInputKey(configId, region);
 
                 if (storedCache.containsKey(configId)) {
-                    // getting the key is enough touch it and keep the entry alive
+                    // getting the key is enough to touch it and keep the entry alive
                     final String assignedTo = runningCache.get(runningKey);
 
                     // runningOn might be null
                     if (assignedTo == null) {
                         // we must have restarted, so need to capture running assignment
-                        log.info("Telegraf={} reported running managed input={}, but we didn't know anyone was, so we'll record it",
+                        log.info("Telegraf={} reported running managed input={}, but we didn't know it",
                                  tid, configId);
-                        runningCache.put(runningKey, tid);
+                        //  it's nobody's (because we probably did a cold restart), so tell them to stop
+                        resp.addRemovedId(configId);
                     } else if (!tid.equals(assignedTo)) {
                         log.warn("The managed input={} got reported by telegraf={}, but we thought it was assigned to {}",
                                  configId, tid, assignedTo);
-
-                        // it's not theirs, so tell them to stop
+                        //  it's not theirs, so tell them to stop
                         resp.addRemovedId(configId);
                     }
                 }

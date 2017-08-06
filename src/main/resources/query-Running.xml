@@ -8,7 +8,7 @@
             <list>
 
                 <bean class="org.apache.ignite.cache.QueryEntity">
-                    <property name="keyType" value="com.rackspace.telegrafhomebase.model.RunningKey"/>
+                    <property name="keyType" value="com.rackspace.telegrafhomebase.model.RunningRemoteInputKey"/>
                     <property name="valueType" value="java.lang.String"/>
 
                     <property name="keyFields">

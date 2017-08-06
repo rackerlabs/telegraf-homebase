@@ -18,14 +18,14 @@ public class IgniteProperties {
      */
     long metricsLogFrequency = 0;
 
-    int storedConfigBackups = 1;
+    int managedInputsCacheBackups = 1;
 
     /**
      * The amount of time an applied config can go without a keep alive (in seconds)
      */
     int runningConfigTtl = 30;
 
-    int runningConfigBackups = 1;
+    int runningConfigCacheBackups = 1;
 
     /**
      * The TTL of a tracked telegraf instance (in seconds)

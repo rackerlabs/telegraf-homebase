@@ -1,24 +1,32 @@
 package com.rackspace.telegrafhomebase.web;
 
+import com.rackspace.telegrafhomebase.model.AssignedInputDefinition;
 import com.rackspace.telegrafhomebase.model.ConfigResponse;
-import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
+import com.rackspace.telegrafhomebase.model.ManagedInput;
+import com.rackspace.telegrafhomebase.model.RegionalInputDefinition;
 import com.rackspace.telegrafhomebase.services.ConfigRepository;
+import com.rackspace.telegrafhomebase.shared.NotFoundException;
+import com.rackspace.telegrafhomebase.shared.NotOwnedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.validation.Valid;
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 /**
+ * This is the REST interface for configuring managed telegraf inputs.
+ *
+ * NOTE: the tenant parameters may later be dicated by spring security.
+ *
  * @author Geoff Bourne
  * @since Jul 2017
  */
@@ -35,31 +43,40 @@ public class ConfigController {
     }
 
     @GetMapping("{tenantId}")
-    public List<StoredRegionalConfig> getAllForTenant(@PathVariable String tenantId) {
+    public List<ManagedInput> getAllForTenant(@PathVariable String tenantId) {
         return configRepository.getAllForTenant(tenantId);
     }
 
-    @GetMapping("{tenantId}/{region}/{id}")
-    public StoredRegionalConfig getOne(@PathVariable String region, @PathVariable String id) {
-        return configRepository.getWithDetails(region, id);
+    @GetMapping("{tenantId}/{id}")
+    public ManagedInput getOne(@PathVariable String tenantId, @PathVariable String id) throws NotFoundException, NotOwnedException {
+        return configRepository.getWithDetails(tenantId, id);
     }
 
-    @DeleteMapping("{tenantId}/{region}/{id}")
-    public void delete(@PathVariable String region, @PathVariable String id) {
-        configRepository.delete(id);
+    @DeleteMapping("{tenantId}/{id}")
+    public void delete(@PathVariable String tenantId, @PathVariable String id) throws NotOwnedException {
+        configRepository.delete(tenantId, id);
     }
 
-    @PostMapping(value = "{tenantId}/{region}", consumes = MediaType.TEXT_PLAIN_VALUE)
-    public ConfigResponse createConfig(@RequestBody String definition,
-                                       @PathVariable String tenantId,
-                                       @PathVariable String region,
-                                       @RequestParam Optional<String> title) {
-
-        final String id = configRepository.createRegional(tenantId, region, definition,
-                                                          title.orElse(null));
+    @PostMapping(value = "{tenantId}/remote")
+    public ConfigResponse createConfig(@PathVariable String tenantId,
+                                       @RequestBody @Validated RegionalInputDefinition definition) {
 
         final ConfigResponse resp = new ConfigResponse();
-        resp.setId(id);
+        resp.setCreated(
+                configRepository.createRemote(tenantId, definition)
+        );
+
+        return resp;
+    }
+
+    @PostMapping(value = "{tenantId}/assigned")
+    public ConfigResponse assignConfig(@RequestBody @Valid AssignedInputDefinition definition,
+                                       @PathVariable String tenantId) {
+
+        final String id = configRepository.createAssigned(tenantId, definition);
+
+        final ConfigResponse resp = new ConfigResponse();
+        resp.setCreated(Collections.singletonList(id));
         return resp;
     }
 }

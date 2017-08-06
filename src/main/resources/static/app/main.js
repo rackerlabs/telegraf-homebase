@@ -47,19 +47,17 @@ angular.module("ConfigApp", [
             add: function(region, definition, title) {
                 return $http({
                     method: 'POST',
-                    url: '/config/'+session.tenantId+'/'+region,
-                    data: definition,
-                    params: {
+                    url: '/config/'+session.tenantId+'/remote',
+                    data: {
+                        regions: [region],
+                        text: definition,
                         title: title
-                    },
-                    headers: {
-                        'Content-Type': 'text/plain'
                     }
                 })
             },
 
             remove: function(region, id) {
-                return $http.delete('/config/'+session.tenantId+'/'+region+'/'+id)
+                return $http.delete('/config/'+session.tenantId+'/'+id)
             },
 
             currentTenant: function() {
@@ -119,10 +117,18 @@ angular.module("ConfigApp", [
                     .then(function success(resp) {
                         $mdToast.show(
                             $mdToast.simple()
-                                .textContent('Added '+resp.data.id)
+                                .textContent('Added '+ resp.data.created[0])
                         );
 
                         getConfigs();
+                    }, function failed(resp){
+                        $mdToast.show(
+                            $mdToast.simple()
+                                .textContent('ERROR: '+resp.data.message+' ('+resp.status+')')
+                                .toastClass('toast-error')
+                                .action('Close')
+                                .hideDelay(0)
+                        );
                     })
             })
         };

@@ -9,7 +9,7 @@ import java.io.Serializable;
  * @since Jul 2017
  */
 @Data
-public class RunningKey implements Serializable {
+public class RunningRemoteInputKey implements Serializable {
     static final long serialVersionUID = 0L;
 
     final String id;

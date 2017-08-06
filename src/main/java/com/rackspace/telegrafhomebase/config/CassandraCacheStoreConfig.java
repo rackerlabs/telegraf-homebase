@@ -1,6 +1,6 @@
 package com.rackspace.telegrafhomebase.config;
 
-import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
+import com.rackspace.telegrafhomebase.model.ManagedInput;
 import org.apache.ignite.cache.store.cassandra.CassandraCacheStore;
 import org.apache.ignite.cache.store.cassandra.CassandraCacheStoreFactory;
 import org.apache.ignite.cache.store.cassandra.datasource.DataSource;
@@ -38,12 +38,12 @@ public class CassandraCacheStoreConfig {
     }
 
     @Bean
-    public Factory<CassandraCacheStore<String, StoredRegionalConfig>> cassandraCacheStoreFactory() {
+    public Factory<CassandraCacheStore<String, ManagedInput>> cassandraCacheStoreFactory() {
         final KeyValuePersistenceSettings persistenceSettings =
-                new KeyValuePersistenceSettings(new ClassPathResource(
-                        "persistence-StoredRegionalConfig.xml"));
+                new KeyValuePersistenceSettings(
+                        new ClassPathResource("persistence-ManagedInputs.xml"));
 
-        final CassandraCacheStoreFactory<String, StoredRegionalConfig> cacheStoreFactory =
+        final CassandraCacheStoreFactory<String, ManagedInput> cacheStoreFactory =
                 new CassandraCacheStoreFactory<>();
         cacheStoreFactory.setDataSource(igniteCassandraDataSource());
         cacheStoreFactory.setPersistenceSettings(persistenceSettings);

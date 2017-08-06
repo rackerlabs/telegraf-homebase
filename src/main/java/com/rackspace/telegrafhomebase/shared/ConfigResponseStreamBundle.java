@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
 
 /**
  * This is a concurrency-safe maintainer of config grpc response streams for a "bundle" of remote telegrafs in
@@ -24,16 +23,25 @@ import java.util.function.Predicate;
  * @since Jul 2017
  */
 @Slf4j
-public class ConfigObserverBundle implements Closeable {
+public class ConfigResponseStreamBundle implements Closeable, TelegrafDisconnectFunction {
 
+    /**
+     * Used around all access to entries.
+     */
     private final ReentrantLock lock;
+    /**
+     * Used to conditionally block on emptiness of entries.
+     */
     private final Condition notEmpty;
     private final List<Entry> entries = new ArrayList<>();
+
     private final Random rand;
+    private final TelegrafDisconnectFunction removalFunction;
     private boolean closed;
 
-    public ConfigObserverBundle(Random rand) {
+    public ConfigResponseStreamBundle(Random rand, TelegrafDisconnectFunction removalFunction) {
         this.rand = rand;
+        this.removalFunction = removalFunction;
         lock = new ReentrantLock();
         notEmpty = lock.newCondition();
     }
@@ -89,16 +97,17 @@ public class ConfigObserverBundle implements Closeable {
      * Picks a configuration stream entry at random and calls the given <code>handler</code> with it.
      * @param handler will be called for one of the entries at random
      */
-    public void respondToOne(Predicate<Entry> handler) {
+    public void respondToOne(EntryPredicate handler) {
         lock.lock();
         try {
             final int choice = rand.nextInt(entries.size());
 
             final Entry entry = entries.get(choice);
-            final boolean keep = handler.test(entry);
+            final boolean keep = handler.invoke(entry);
             if (!keep) {
                 log.debug("Removing due to handler response {}", entry);
                 entries.remove(choice);
+                removalFunction.handleDisconnect(entry.getTid());
             }
 
         } finally {
@@ -113,16 +122,17 @@ public class ConfigObserverBundle implements Closeable {
      *
      * @param handler will be called for each entry
      */
-    public void respondToAll(Predicate<Entry> handler) {
+    public void respondToAll(EntryPredicate handler) {
         lock.lock();
         try {
             final Iterator<Entry> itr = entries.iterator();
             while (itr.hasNext()) {
                 final Entry entry = itr.next();
-                final boolean keep = handler.test(entry);
+                final boolean keep = handler.invoke(entry);
                 if (!keep) {
                     log.debug("Removing due to handler response {}", entry);
                     itr.remove();
+                    removalFunction.handleDisconnect(entry.getTid());
                 }
             }
 
@@ -130,6 +140,20 @@ public class ConfigObserverBundle implements Closeable {
             lock.unlock();
         }
 
+    }
+
+    @Override
+    public void handleDisconnect(String tid) {
+        lock.lock();
+        try {
+            entries.removeIf(entry -> entry.getTid().equals(tid));
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public interface EntryPredicate {
+        boolean invoke(Entry entry);
     }
 
     /**

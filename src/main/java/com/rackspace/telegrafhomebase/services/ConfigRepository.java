@@ -1,8 +1,14 @@
 package com.rackspace.telegrafhomebase.services;
 
-import com.rackspace.telegrafhomebase.CacheNames;
-import com.rackspace.telegrafhomebase.model.RunningKey;
-import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
+import com.google.common.base.Strings;
+import com.rackspace.telegrafhomebase.config.IgniteCacheProvider;
+import com.rackspace.telegrafhomebase.model.AssignedInputDefinition;
+import com.rackspace.telegrafhomebase.model.ManagedInput;
+import com.rackspace.telegrafhomebase.model.RegionalInputDefinition;
+import com.rackspace.telegrafhomebase.model.RunningRemoteInputKey;
+import com.rackspace.telegrafhomebase.shared.NotFoundException;
+import com.rackspace.telegrafhomebase.shared.NotOwnedException;
+import com.rackspace.telegrafhomebase.shared.StructuredInputFormatter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
@@ -11,102 +17,147 @@ import org.apache.ignite.cache.query.QueryCursor;
 import org.apache.ignite.cache.query.SqlQuery;
 import org.apache.ignite.transactions.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 import javax.annotation.PostConstruct;
 import javax.cache.Cache;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
  * @author Geoff Bourne
  * @since Jul 2017
  */
-@Component @Slf4j
+@Repository @Slf4j
 public class ConfigRepository {
-    private final IgniteCache<String, StoredRegionalConfig> regionalConfigCache;
-    private final IgniteCache<RunningKey, String> runningCache;
+    private final IgniteCache<String, ManagedInput> managedInputsCache;
+    private final IgniteCache<RunningRemoteInputKey, String> runningCache;
     private final IdCreator idCreator;
     private final IgniteTransactions transactions;
+    private final StructuredInputFormatter structuredInputFormatter
+            = new StructuredInputFormatter();
 
     @Autowired
-    public ConfigRepository(Ignite ignite, IdCreator idCreator) {
-        regionalConfigCache = ignite.cache(CacheNames.REGIONAL_CONFIG);
-        runningCache = ignite.cache(CacheNames.RUNNING);
+    public ConfigRepository(Ignite ignite, IdCreator idCreator, IgniteCacheProvider cacheProvider) {
+        managedInputsCache = cacheProvider.managedInputsCache();
+        runningCache = cacheProvider.runningInputsCache();
         transactions = ignite.transactions();
         this.idCreator = idCreator;
     }
 
     @PostConstruct
     public void loadCache() {
-        regionalConfigCache.localLoadCacheAsync(null);
+        managedInputsCache.localLoadCacheAsync(null);
     }
 
-    public String createRegional(String tenantId, String region, String definition, String title) {
-        final StoredRegionalConfig config = new StoredRegionalConfig();
-        config.setDefinition(definition);
-        final String id = idCreator.create();
-        config.setId(id);
-        config.setTitle(title);
-        config.setTenantId(tenantId);
-        config.setRegion(region);
+    public List<String> createRemote(String tenantId, RegionalInputDefinition definition) {
+        List<String> ids = new ArrayList<>(definition.getRegions().size());
 
-        log.debug("Creating externally provided configuration: {}", config);
+        final String definitionText;
+        if (definition.getStructured() != null) {
+            definitionText = structuredInputFormatter.format(definition.getStructured());
+        }
+        else {
+            definitionText = definition.getText();
+        }
+
+        if (Strings.isNullOrEmpty(definitionText)) {
+            throw new IllegalArgumentException("text or structured needs to be specified");
+        }
 
         try (Transaction tx = transactions.txStart()) {
-            regionalConfigCache.put(config.getId(), config);
+            for (String region : definition.getRegions()) {
+                final ManagedInput config = new ManagedInput();
+                final String id = idCreator.create();
+                ids.add(id);
+                config.setId(id);
+                config.setText(definitionText);
+                config.setStructured(definition.getStructured());
+                config.setTitle(definition.getTitle());
+                config.setTenantId(tenantId);
+                config.setRegion(region);
+
+                log.debug("Creating externally provided configuration: {}", config);
+
+                managedInputsCache.put(config.getId(), config);
+            }
+
             tx.commit();
         }
 
-        return id;
+        return ids;
     }
 
-    public List<StoredRegionalConfig> getAll() {
-        final ArrayList<StoredRegionalConfig> results = new ArrayList<>();
-
-        for (Cache.Entry<String, StoredRegionalConfig> entry : regionalConfigCache) {
-            results.add(entry.getValue());
-        }
-
-        return results;
+    public String createAssigned(String tenantId, AssignedInputDefinition definition) {
+        return null;
     }
 
-    public void delete(String id) {
+    public void delete(String tenantId, String id) throws NotOwnedException {
         log.info("Deleting {}", id);
 
+        final boolean valid;
         try (Transaction tx = transactions.txStart()) {
-            regionalConfigCache.remove(id);
+            valid = managedInputsCache.invoke(id, (mutableEntry, args) -> {
+                if (mutableEntry.getValue() != null) {
+                    if (args.length >= 1 && args[0] instanceof String) {
+                        final String expectedTenantId = (String) args[0];
+
+                        if (Objects.equals(expectedTenantId, mutableEntry.getValue().getTenantId())) {
+                            mutableEntry.remove();
+
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+                // doesn't exist, so that's fine
+                return true;
+            }, tenantId);
+
             tx.commit();
+        }
+
+        if (!valid) {
+            throw new NotOwnedException("Not owned by tenant");
         }
     }
 
-    public StoredRegionalConfig getWithDetails(String region, String id) {
-        final StoredRegionalConfig storedRegionalConfig = regionalConfigCache.get(id);
-
-        storedRegionalConfig.setRunningOn(runningCache.get(new RunningKey(id, region)));
-
-        return storedRegionalConfig;
+    ManagedInput get(String id) {
+        return managedInputsCache.get(id);
     }
 
-    public StoredRegionalConfig get(String id) {
-        return regionalConfigCache.get(id);
+    public ManagedInput getWithDetails(String tenantId, String id) throws NotFoundException, NotOwnedException {
+        final ManagedInput managedInput = managedInputsCache.get(id);
+        if (managedInput == null) {
+            throw new NotFoundException("Managed input with given id doesn't exist", id);
+        }
+        if (!managedInput.getTenantId().equals(tenantId)) {
+            log.debug("Attempted to retrieve managed input={} for wrong tenant={}", id, tenantId);
+            throw new NotOwnedException("Not owned by tenant");
+        }
+
+        managedInput.setRunningOn(runningCache.get(new RunningRemoteInputKey(id, managedInput.getRegion())));
+
+        return managedInput;
     }
 
-    public List<StoredRegionalConfig> getAllForTenant(String tenantId) {
-        final SqlQuery<String, StoredRegionalConfig> query = new SqlQuery<>(
-                StoredRegionalConfig.class,
+    public List<ManagedInput> getAllForTenant(String tenantId) {
+        final SqlQuery<String, ManagedInput> query = new SqlQuery<>(
+                ManagedInput.class,
                 "tenantid = ?"
         );
 
         try (Transaction tx = transactions.txStart()) {
-            final QueryCursor<Cache.Entry<String, StoredRegionalConfig>> queryCursor =
-                    regionalConfigCache.query(query.setArgs(tenantId));
+            final QueryCursor<Cache.Entry<String, ManagedInput>> queryCursor =
+                    managedInputsCache.query(query.setArgs(tenantId));
             return queryCursor.getAll().stream()
                     .map(entry -> {
-                        final StoredRegionalConfig value = entry.getValue();
+                        final ManagedInput value = entry.getValue();
 
-                        value.setRunningOn(runningCache.get(new RunningKey(value.getId(), value.getRegion())));
+                        value.setRunningOn(runningCache.get(new RunningRemoteInputKey(value.getId(), value.getRegion())));
 
                         return value;
                     })

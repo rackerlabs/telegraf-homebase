@@ -2,6 +2,7 @@ package com.rackspace.telegrafhomebase.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
+import org.apache.ignite.IgniteTransactions;
 import org.apache.ignite.Ignition;
 import org.apache.ignite.cache.spring.SpringCacheManager;
 import org.apache.ignite.configuration.CacheConfiguration;
@@ -73,6 +74,11 @@ public class IgniteConfig {
         final Ignite ignite = Ignition.start(igniteConfiguration());
 
         return ignite;
+    }
+
+    @Bean
+    public IgniteTransactions igniteTransactions() {
+        return ignite().transactions();
     }
 
     @Bean

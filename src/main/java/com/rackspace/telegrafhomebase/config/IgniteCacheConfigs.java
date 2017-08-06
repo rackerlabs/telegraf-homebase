@@ -1,8 +1,10 @@
 package com.rackspace.telegrafhomebase.config;
 
 import com.rackspace.telegrafhomebase.CacheNames;
-import com.rackspace.telegrafhomebase.model.RunningKey;
-import com.rackspace.telegrafhomebase.model.StoredRegionalConfig;
+import com.rackspace.telegrafhomebase.model.ManagedInput;
+import com.rackspace.telegrafhomebase.model.RunningRemoteInputKey;
+import com.rackspace.telegrafhomebase.model.TaggedNodes;
+import com.rackspace.telegrafhomebase.model.TaggedNodesKey;
 import org.apache.ignite.cache.CacheAtomicityMode;
 import org.apache.ignite.cache.CacheWriteSynchronizationMode;
 import org.apache.ignite.cache.store.cassandra.CassandraCacheStore;
@@ -35,15 +37,15 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
-    public CacheConfiguration<String,StoredRegionalConfig> regionalConfigCacheConfig(
-            QueryEntities storedRegionalConfigQueryEntities,
+    public CacheConfiguration<String,ManagedInput> managedInputsCacheConfig(
+            QueryEntities managedInputsQueryEntities,
             @Autowired(required = false)
-            Factory<CassandraCacheStore<String, StoredRegionalConfig>> cacheStoreFactory
+            Factory<CassandraCacheStore<String, ManagedInput>> cacheStoreFactory
     ) {
-        final CacheConfiguration<String,StoredRegionalConfig> config =
-                new CacheConfiguration<>(CacheNames.REGIONAL_CONFIG);
-        config.setTypes(String.class, StoredRegionalConfig.class);
-        config.setBackups(properties.getStoredConfigBackups());
+        final CacheConfiguration<String,ManagedInput> config =
+                new CacheConfiguration<>(CacheNames.MANAGED_INPUTS);
+        config.setTypes(String.class, ManagedInput.class);
+        config.setBackups(properties.getManagedInputsCacheBackups());
         config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_ASYNC);
         config.setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL);
 
@@ -55,22 +57,23 @@ public class IgniteCacheConfigs {
             config.setCacheStoreFactory(cacheStoreFactory);
         }
 
-        config.setQueryEntities(storedRegionalConfigQueryEntities.getQueryEntities());
+        config.setQueryEntities(managedInputsQueryEntities.getQueryEntities());
 
         return config;
     }
 
     @Bean
-    public CacheConfiguration<RunningKey,String> runningCacheConfig(
+    public CacheConfiguration<RunningRemoteInputKey,String/*tid*/> runningInputsCacheConfig(
             QueryEntities runningQueryEntities
     ) {
-        final CacheConfiguration<RunningKey,String> config = new CacheConfiguration<>(CacheNames.RUNNING);
-        config.setTypes(RunningKey.class, String.class);
+        final CacheConfiguration<RunningRemoteInputKey,String> config
+                = new CacheConfiguration<>(CacheNames.RUNNING_REMOTE_INPUTS);
+        config.setTypes(RunningRemoteInputKey.class, String.class);
         config.setExpiryPolicyFactory(TouchedExpiryPolicy.factoryOf(
                 new Duration(TimeUnit.SECONDS, properties.getRunningConfigTtl())
         ));
         config.setEagerTtl(true);
-        config.setBackups(properties.getRunningConfigBackups());
+        config.setBackups(properties.getRunningConfigCacheBackups());
         config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_ASYNC);
         config.setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL);
 
@@ -80,12 +83,12 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
-    public CacheConfiguration<String/*stored config id*/, Boolean> queuedCacheConfig() {
-        CacheConfiguration<String, Boolean> config = new CacheConfiguration<>(CacheNames.QUEUED);
+    public CacheConfiguration<TaggedNodesKey, TaggedNodes> taggedNodesCacheConfig() {
+        final CacheConfiguration<TaggedNodesKey, TaggedNodes> config = new CacheConfiguration<>(
+                CacheNames.TAGGED_NODES);
 
-        config.setTypes(String.class, Boolean.class);
-        config.setBackups(properties.getRunningConfigBackups());
-        config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_ASYNC);
+        config.setTypes(TaggedNodesKey.class, TaggedNodes.class);
+        config.setBackups(properties.getRunningConfigCacheBackups());
 
         return config;
     }

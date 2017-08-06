@@ -5,6 +5,7 @@ services:
     image: cassandra:3.0
     volumes:
       - ${PWD}/data/cassandra:/var/lib/cassandra
+      - ${PWD}/config/cassandra-jvm.options:/etc/cassandra/jvm.options
     ports:
       - 9042:9042
     environment:
