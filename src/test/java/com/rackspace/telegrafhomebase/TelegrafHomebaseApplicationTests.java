@@ -16,6 +16,7 @@ import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 import remote.Telegraf;
 
@@ -42,6 +43,7 @@ import static org.mockito.Mockito.when;
                 "homebase.initialConsistencyCheckDelay=5",
                 "logging.level.com.rackspace.telegrafhomebase=debug"
         })
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public class TelegrafHomebaseApplicationTests {
 
     @MockBean

@@ -111,7 +111,7 @@ public class PendingConfigQueuer {
                 log.warn("Interrupted during queue take, should happen only during shutdown");
                 return;
             } catch (IgniteException e) {
-                log.warn("Unexpceted exception while taking from pending config queue", e);
+                log.warn("Unexpected exception while taking from pending config queue", e);
                 handler.onError(new IllegalStateException(
                         "Unexpected exception while taking from pending config queue"));
                 return;
