@@ -30,8 +30,8 @@ import static org.junit.Assert.assertThat;
  */
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = {
-        TaggingRepository.class,
         IgniteConfig.class,
+        TaggingRepository.class,
         IgniteCacheConfigs.class,
         IgniteCacheProvider.class,
         IgniteProperties.class,
