@@ -1,6 +1,7 @@
 package com.rackspace.telegrafhomebase.model;
 
 import lombok.Data;
+import org.apache.ignite.cache.query.annotations.QuerySqlField;
 
 import java.io.Serializable;
 
@@ -12,6 +13,9 @@ import java.io.Serializable;
 public class RunningAssignedInputKey implements Serializable {
     static final long serialVersionUID = 0L;
 
+    @QuerySqlField(index = true)
     final String managedInputId;
+
+    @QuerySqlField
     final String telegrafId;
 }

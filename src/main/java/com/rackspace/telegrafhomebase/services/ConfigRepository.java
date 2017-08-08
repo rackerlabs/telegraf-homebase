@@ -1,10 +1,13 @@
 package com.rackspace.telegrafhomebase.services;
 
 import com.google.common.base.Strings;
+import com.rackspace.telegrafhomebase.CacheNames;
 import com.rackspace.telegrafhomebase.config.IgniteCacheProvider;
 import com.rackspace.telegrafhomebase.model.AssignedInputDefinition;
 import com.rackspace.telegrafhomebase.model.ManagedInput;
+import com.rackspace.telegrafhomebase.model.ManagedInputExt;
 import com.rackspace.telegrafhomebase.model.RegionalInputDefinition;
+import com.rackspace.telegrafhomebase.model.RunningAssignedInputKey;
 import com.rackspace.telegrafhomebase.model.RunningRegionalInputKey;
 import com.rackspace.telegrafhomebase.model.StructuredInputConfig;
 import com.rackspace.telegrafhomebase.shared.NotFoundException;
@@ -15,8 +18,10 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.IgniteTransactions;
 import org.apache.ignite.cache.query.QueryCursor;
+import org.apache.ignite.cache.query.SqlFieldsQuery;
 import org.apache.ignite.cache.query.SqlQuery;
 import org.apache.ignite.transactions.Transaction;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -24,6 +29,7 @@ import javax.annotation.PostConstruct;
 import javax.cache.Cache;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -36,12 +42,13 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ConfigRepository {
     private final IgniteCache<String, ManagedInput> managedInputsCache;
-    private final IgniteCache<RunningRegionalInputKey, String> runningCache;
+    private final IgniteCache<RunningRegionalInputKey, String> runningRegionalCache;
     private final IdCreator idCreator;
     private final TaggingRepository taggingRepository;
     private final IgniteTransactions transactions;
     private final StructuredInputFormatter structuredInputFormatter
             = new StructuredInputFormatter();
+    private final IgniteCache<RunningAssignedInputKey, String> runningAssignedInputsCache;
 
     @Autowired
     public ConfigRepository(Ignite ignite,
@@ -49,7 +56,8 @@ public class ConfigRepository {
                             IgniteCacheProvider cacheProvider,
                             TaggingRepository taggingRepository) {
         managedInputsCache = cacheProvider.managedInputsCache();
-        runningCache = cacheProvider.runningRegionalInputsCache();
+        runningRegionalCache = cacheProvider.runningRegionalInputsCache();
+        runningAssignedInputsCache = cacheProvider.runningAssignedInputsCache();
         transactions = ignite.transactions();
         this.idCreator = idCreator;
         this.taggingRepository = taggingRepository;
@@ -117,10 +125,9 @@ public class ConfigRepository {
             managedInputsCache.putAsync(config.getId(), config);
 
             tx.commit();
+
+            return id;
         }
-
-
-        return null;
     }
 
     private String resolveDefinitionText(StructuredInputConfig structured, String text) {
@@ -168,7 +175,7 @@ public class ConfigRepository {
         return managedInputsCache.get(id);
     }
 
-    public ManagedInput getWithDetails(String tenantId, String id) throws NotFoundException, NotOwnedException {
+    public ManagedInputExt getWithDetails(String tenantId, String id) throws NotFoundException, NotOwnedException {
         final ManagedInput managedInput = managedInputsCache.get(id);
         if (managedInput == null) {
             throw new NotFoundException("Managed input with given id doesn't exist", id);
@@ -178,12 +185,10 @@ public class ConfigRepository {
             throw new NotOwnedException("Not owned by tenant");
         }
 
-        managedInput.setRunningOn(runningCache.get(new RunningRegionalInputKey(id, managedInput.getRegion())));
-
-        return managedInput;
+        return fillManagedInputExtensions(id, managedInput);
     }
 
-    public List<ManagedInput> getAllForTenant(String tenantId) {
+    public List<ManagedInputExt> getAllForTenant(String tenantId) {
         final SqlQuery<String, ManagedInput> query = new SqlQuery<>(
                 ManagedInput.class,
                 "tenantid = ?"
@@ -194,14 +199,33 @@ public class ConfigRepository {
                     managedInputsCache.query(query.setArgs(tenantId));
             return queryCursor.getAll().stream()
                     .map(entry -> {
-                        final ManagedInput value = entry.getValue();
+                        final String id = entry.getKey();
+                        final ManagedInput managedInput = entry.getValue();
 
-                        value.setRunningOn(runningCache.get(new RunningRegionalInputKey(value.getId(),
-                                                                                        value.getRegion())));
-
-                        return value;
+                        return fillManagedInputExtensions(id, managedInput);
                     })
                     .collect(Collectors.toList());
         }
+    }
+
+    @NotNull
+    private ManagedInputExt fillManagedInputExtensions(String id, ManagedInput managedInput) {
+        final ManagedInputExt ext = new ManagedInputExt(managedInput);
+        if (managedInput.getRegion() != null) {
+            final String tid = runningRegionalCache.get(new RunningRegionalInputKey(id, managedInput.getRegion()));
+            ext.setRunningOn(Collections.singletonList(tid));
+        } else {
+            final SqlFieldsQuery query
+                    = new SqlFieldsQuery("select telegrafId" +
+                                                 " from \"" + CacheNames.RUNNING_ASSIGNED_INPUTS + "\".String" +
+                                         " where managedInputId = ?");
+
+            final List<String> runningOn = new ArrayList<>();
+            for (List<?> row : runningAssignedInputsCache.query(query.setArgs(managedInput.getId()))) {
+                runningOn.add(((String) row.get(0)));
+            }
+            ext.setRunningOn(runningOn);
+        }
+        return ext;
     }
 }

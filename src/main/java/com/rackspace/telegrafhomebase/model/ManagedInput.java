@@ -30,15 +30,4 @@ public class ManagedInput implements Serializable {
     String region;
 
     Map<String,String> assignmentTags;
-
-    /**
-     * When set, indicates that this telegraf input must be run on a specific instance, usually because
-     * it's an agent-self check.
-     */
-    String assignedTo;
-
-    /**
-     * A field that is only set by the backend during lookups to indicate what instance is actually .
-     */
-    String runningOn;
 }

@@ -1,6 +1,7 @@
 package com.rackspace.telegrafhomebase.model;
 
 import lombok.Data;
+import org.apache.ignite.cache.query.annotations.QuerySqlField;
 
 import java.io.Serializable;
 
@@ -15,6 +16,8 @@ public class RunningRegionalInputKey implements Serializable {
     /**
      * The managed input's ID
      */
+    @QuerySqlField(index = true)
     final String mid;
+    @QuerySqlField(index = true)
     final String region;
 }

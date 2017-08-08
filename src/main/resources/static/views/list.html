@@ -24,7 +24,9 @@
                 </tr>
                 <tr>
                     <th>Running on:</th>
-                    <td>{{c.runningOn || '(none)'}}</td>
+                    <td>
+                            <div ng-repeat="tid in c.runningOn">{{tid}}</div>
+                    </td>
                 </tr>
 
             </table>

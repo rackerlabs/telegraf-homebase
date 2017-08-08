@@ -2,7 +2,7 @@ package com.rackspace.telegrafhomebase.web;
 
 import com.rackspace.telegrafhomebase.model.AssignedInputDefinition;
 import com.rackspace.telegrafhomebase.model.ConfigResponse;
-import com.rackspace.telegrafhomebase.model.ManagedInput;
+import com.rackspace.telegrafhomebase.model.ManagedInputExt;
 import com.rackspace.telegrafhomebase.model.RegionalInputDefinition;
 import com.rackspace.telegrafhomebase.services.ConfigRepository;
 import com.rackspace.telegrafhomebase.services.TaggingRepository;
@@ -47,12 +47,12 @@ public class ConfigController {
     }
 
     @GetMapping("{tenantId}")
-    public List<ManagedInput> getAllForTenant(@PathVariable String tenantId) {
+    public List<ManagedInputExt> getAllForTenant(@PathVariable String tenantId) {
         return configRepository.getAllForTenant(tenantId);
     }
 
     @GetMapping("{tenantId}/{id}")
-    public ManagedInput getOne(@PathVariable String tenantId, @PathVariable String id) throws NotFoundException, NotOwnedException {
+    public ManagedInputExt getOne(@PathVariable String tenantId, @PathVariable String id) throws NotFoundException, NotOwnedException {
         return configRepository.getWithDetails(tenantId, id);
     }
 

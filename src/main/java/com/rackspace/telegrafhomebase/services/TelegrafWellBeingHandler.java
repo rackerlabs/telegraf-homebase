@@ -5,7 +5,6 @@ import com.rackspace.telegrafhomebase.model.ManagedInput;
 import com.rackspace.telegrafhomebase.model.RunningAssignedInputKey;
 import com.rackspace.telegrafhomebase.model.RunningRegionalInputKey;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.IgniteTransactions;
 import org.apache.ignite.transactions.Transaction;
@@ -25,12 +24,11 @@ public class TelegrafWellBeingHandler {
     private final IgniteCache<RunningRegionalInputKey, String> runningRegionalCache;
     private final IgniteCache<String, ManagedInput> managedInputCache;
     private final IgniteTransactions igniteTransactions;
-    private final String ourId;
     private final IgniteCache<RunningAssignedInputKey, String> runningAssignedInputsCache;
 
     @Autowired
-    public TelegrafWellBeingHandler(Ignite ignite, IgniteTransactions igniteTransactions, IgniteCacheProvider cacheProvider) {
-        ourId = ignite.cluster().localNode().id().toString();
+    public TelegrafWellBeingHandler(IgniteTransactions igniteTransactions,
+                                    IgniteCacheProvider cacheProvider) {
         this.igniteTransactions = igniteTransactions;
         runningRegionalCache = cacheProvider.runningRegionalInputsCache();
         runningAssignedInputsCache = cacheProvider.runningAssignedInputsCache();
@@ -78,6 +76,9 @@ public class TelegrafWellBeingHandler {
                     log.info("Config {} was removed, so reporting back to telegraf as such", configId);
                     // it's been removed, let them know and let's clean up
                     resp.addRemovedId(configId);
+
+                    final RunningAssignedInputKey assignedKey = new RunningAssignedInputKey(configId, tid);
+                    runningAssignedInputsCache.remove(assignedKey);
                     runningRegionalCache.remove(runningKey);
                 }
             });

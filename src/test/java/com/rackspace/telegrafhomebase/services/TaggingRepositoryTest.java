@@ -39,8 +39,8 @@ import static org.junit.Assert.assertThat;
         TelegrafProperties.class
 }, properties = {
         "logging.level.org.apache.ignite.internal.processors.query.h2=debug"
-})
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+}, webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class TaggingRepositoryTest {
 
     @Autowired

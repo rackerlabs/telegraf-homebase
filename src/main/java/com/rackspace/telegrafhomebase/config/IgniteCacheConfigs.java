@@ -68,9 +68,7 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
-    public CacheConfiguration<RunningRegionalInputKey,String/*tid*/> runningRegionalInputsCacheConfig(
-            QueryEntities runningQueryEntities
-    ) {
+    public CacheConfiguration<RunningRegionalInputKey,String/*tid*/> runningRegionalInputsCacheConfig() {
         final CacheConfiguration<RunningRegionalInputKey,String> config
                 = new CacheConfiguration<>(CacheNames.RUNNING_REGIONAL_INPUTS);
         config.setTypes(RunningRegionalInputKey.class, String.class);
@@ -82,7 +80,7 @@ public class IgniteCacheConfigs {
         config.setWriteSynchronizationMode(CacheWriteSynchronizationMode.FULL_ASYNC);
         config.setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL);
 
-        config.setQueryEntities(runningQueryEntities.getQueryEntities());
+        config.setIndexedTypes(RunningRegionalInputKey.class, String.class);
 
         return config;
     }
@@ -102,22 +100,24 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
-    public CacheConfiguration<String/*tid*/, DirectAssignments> directAssignmentsCacheConfig() {
-        final CacheConfiguration<String, DirectAssignments> config = new CacheConfiguration<>(
-                CacheNames.DIRECT_ASSIGNMENTS
-        );
-        config.setTypes(String.class, DirectAssignments.class);
-        config.setBackups(properties.getRunningConfigCacheBackups());
-
-        return config;
-    }
-
-    @Bean
     public CacheConfiguration<RunningAssignedInputKey, String/*cluster node id*/> runningAssignedInputsCacheConfig() {
         final CacheConfiguration<RunningAssignedInputKey, String> config = new CacheConfiguration<>(
                 CacheNames.RUNNING_ASSIGNED_INPUTS
         );
         config.setTypes(RunningAssignedInputKey.class, String.class);
+        config.setBackups(properties.getRunningConfigCacheBackups());
+
+        config.setIndexedTypes(RunningAssignedInputKey.class, String.class);
+
+        return config;
+    }
+
+    @Bean
+    public CacheConfiguration<String/*tid*/, DirectAssignments> directAssignmentsCacheConfig() {
+        final CacheConfiguration<String, DirectAssignments> config = new CacheConfiguration<>(
+                CacheNames.DIRECT_ASSIGNMENTS
+        );
+        config.setTypes(String.class, DirectAssignments.class);
         config.setBackups(properties.getRunningConfigCacheBackups());
 
         return config;
