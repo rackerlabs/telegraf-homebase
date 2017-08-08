@@ -72,7 +72,7 @@ public class DirectAssignments {
 
     public Set<String> removalsIn(DirectAssignments updatedAssignments) {
         if (this.managedInputIds == null || updatedAssignments.managedInputIds == null) {
-            return Collections.emptySet();
+            return null;
         }
         final HashSet<String> content = new HashSet<>(this.managedInputIds);
         content.removeAll(updatedAssignments.managedInputIds);
