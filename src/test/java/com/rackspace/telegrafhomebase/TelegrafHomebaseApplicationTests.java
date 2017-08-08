@@ -67,7 +67,7 @@ public class TelegrafHomebaseApplicationTests {
         definition.setRegions(Collections.singletonList("west"));
         definition.setText("JUST A TEST");
         definition.setTitle("Testing");
-        configRepository.createRemote("ac-1", definition);
+        configRepository.createRegional("ac-1", definition);
 
         StreamObserver<Telegraf.ConfigPack> observer1 = Mockito.mock(StreamObserver.class);
         doAnswer(new OneTimeObserver())

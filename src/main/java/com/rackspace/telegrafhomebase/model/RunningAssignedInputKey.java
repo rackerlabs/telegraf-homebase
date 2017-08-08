@@ -6,12 +6,12 @@ import java.io.Serializable;
 
 /**
  * @author Geoff Bourne
- * @since Jul 2017
+ * @since Aug 2017
  */
 @Data
-public class RunningRemoteInputKey implements Serializable {
+public class RunningAssignedInputKey implements Serializable {
     static final long serialVersionUID = 0L;
 
-    final String id;
-    final String region;
+    final String managedInputId;
+    final String telegrafId;
 }

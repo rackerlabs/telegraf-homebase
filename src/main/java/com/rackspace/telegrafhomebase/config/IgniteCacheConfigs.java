@@ -1,8 +1,11 @@
 package com.rackspace.telegrafhomebase.config;
 
 import com.rackspace.telegrafhomebase.CacheNames;
+import com.rackspace.telegrafhomebase.model.ConnectedNode;
+import com.rackspace.telegrafhomebase.model.DirectAssignments;
 import com.rackspace.telegrafhomebase.model.ManagedInput;
-import com.rackspace.telegrafhomebase.model.RunningRemoteInputKey;
+import com.rackspace.telegrafhomebase.model.RunningAssignedInputKey;
+import com.rackspace.telegrafhomebase.model.RunningRegionalInputKey;
 import com.rackspace.telegrafhomebase.model.TaggedNodes;
 import com.rackspace.telegrafhomebase.model.TaggedNodesKey;
 import org.apache.ignite.cache.CacheAtomicityMode;
@@ -20,6 +23,8 @@ import javax.cache.expiry.TouchedExpiryPolicy;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * This configures the application's Ignite cache instances into the Spring context.
+ *
  * @author Geoff Bourne
  * @since Jul 2017
  */
@@ -63,12 +68,12 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
-    public CacheConfiguration<RunningRemoteInputKey,String/*tid*/> runningInputsCacheConfig(
+    public CacheConfiguration<RunningRegionalInputKey,String/*tid*/> runningRegionalInputsCacheConfig(
             QueryEntities runningQueryEntities
     ) {
-        final CacheConfiguration<RunningRemoteInputKey,String> config
-                = new CacheConfiguration<>(CacheNames.RUNNING_REMOTE_INPUTS);
-        config.setTypes(RunningRemoteInputKey.class, String.class);
+        final CacheConfiguration<RunningRegionalInputKey,String> config
+                = new CacheConfiguration<>(CacheNames.RUNNING_REGIONAL_INPUTS);
+        config.setTypes(RunningRegionalInputKey.class, String.class);
         config.setExpiryPolicyFactory(TouchedExpiryPolicy.factoryOf(
                 new Duration(TimeUnit.SECONDS, properties.getRunningConfigTtl())
         ));
@@ -83,11 +88,47 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
-    public CacheConfiguration<TaggedNodesKey, TaggedNodes> taggedNodesCacheConfig() {
+    public CacheConfiguration<TaggedNodesKey, TaggedNodes> taggedNodesCacheConfig(
+            QueryEntities taggedNodesQueryEntities
+    ) {
         final CacheConfiguration<TaggedNodesKey, TaggedNodes> config = new CacheConfiguration<>(
                 CacheNames.TAGGED_NODES);
 
         config.setTypes(TaggedNodesKey.class, TaggedNodes.class);
+        config.setBackups(properties.getRunningConfigCacheBackups());
+        config.setQueryEntities(taggedNodesQueryEntities.getQueryEntities());
+
+        return config;
+    }
+
+    @Bean
+    public CacheConfiguration<String/*tid*/, DirectAssignments> directAssignmentsCacheConfig() {
+        final CacheConfiguration<String, DirectAssignments> config = new CacheConfiguration<>(
+                CacheNames.DIRECT_ASSIGNMENTS
+        );
+        config.setTypes(String.class, DirectAssignments.class);
+        config.setBackups(properties.getRunningConfigCacheBackups());
+
+        return config;
+    }
+
+    @Bean
+    public CacheConfiguration<RunningAssignedInputKey, String/*cluster node id*/> runningAssignedInputsCacheConfig() {
+        final CacheConfiguration<RunningAssignedInputKey, String> config = new CacheConfiguration<>(
+                CacheNames.RUNNING_ASSIGNED_INPUTS
+        );
+        config.setTypes(RunningAssignedInputKey.class, String.class);
+        config.setBackups(properties.getRunningConfigCacheBackups());
+
+        return config;
+    }
+
+    @Bean
+    public CacheConfiguration<String/*tid*/, ConnectedNode> connectedNodesCacheConfig() {
+        final CacheConfiguration<String/*tid*/, ConnectedNode> config = new CacheConfiguration<>(
+                CacheNames.CONNECTED_NODES
+        );
+        config.setTypes(String.class, ConnectedNode.class);
         config.setBackups(properties.getRunningConfigCacheBackups());
 
         return config;

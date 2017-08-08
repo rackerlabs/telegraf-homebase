@@ -47,7 +47,7 @@ angular.module("ConfigApp", [
             add: function(region, definition, title) {
                 return $http({
                     method: 'POST',
-                    url: '/config/'+session.tenantId+'/remote',
+                    url: '/config/'+session.tenantId+'/regional',
                     data: {
                         regions: [region],
                         text: definition,

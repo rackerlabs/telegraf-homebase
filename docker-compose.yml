@@ -64,7 +64,7 @@ services:
       - postgres:/var/lib/postgresql
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:4.4.3
     ports:
       - 3000:3000
     environment:

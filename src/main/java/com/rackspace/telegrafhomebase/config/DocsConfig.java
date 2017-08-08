@@ -10,6 +10,9 @@ import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 /**
+ * This configures the auto-generated swagger2 docs, but is only enabled when the <code>docs</code> profile
+ * is enabled.
+ *
  * @author Geoff Bourne
  * @since Aug 2017
  */

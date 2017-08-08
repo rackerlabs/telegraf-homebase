@@ -5,7 +5,8 @@ import com.rackspace.telegrafhomebase.config.IgniteCacheProvider;
 import com.rackspace.telegrafhomebase.model.AssignedInputDefinition;
 import com.rackspace.telegrafhomebase.model.ManagedInput;
 import com.rackspace.telegrafhomebase.model.RegionalInputDefinition;
-import com.rackspace.telegrafhomebase.model.RunningRemoteInputKey;
+import com.rackspace.telegrafhomebase.model.RunningRegionalInputKey;
+import com.rackspace.telegrafhomebase.model.StructuredInputConfig;
 import com.rackspace.telegrafhomebase.shared.NotFoundException;
 import com.rackspace.telegrafhomebase.shared.NotOwnedException;
 import com.rackspace.telegrafhomebase.shared.StructuredInputFormatter;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Repository;
 import javax.annotation.PostConstruct;
 import javax.cache.Cache;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -30,21 +32,27 @@ import java.util.stream.Collectors;
  * @author Geoff Bourne
  * @since Jul 2017
  */
-@Repository @Slf4j
+@Repository
+@Slf4j
 public class ConfigRepository {
     private final IgniteCache<String, ManagedInput> managedInputsCache;
-    private final IgniteCache<RunningRemoteInputKey, String> runningCache;
+    private final IgniteCache<RunningRegionalInputKey, String> runningCache;
     private final IdCreator idCreator;
+    private final TaggingRepository taggingRepository;
     private final IgniteTransactions transactions;
     private final StructuredInputFormatter structuredInputFormatter
             = new StructuredInputFormatter();
 
     @Autowired
-    public ConfigRepository(Ignite ignite, IdCreator idCreator, IgniteCacheProvider cacheProvider) {
+    public ConfigRepository(Ignite ignite,
+                            IdCreator idCreator,
+                            IgniteCacheProvider cacheProvider,
+                            TaggingRepository taggingRepository) {
         managedInputsCache = cacheProvider.managedInputsCache();
-        runningCache = cacheProvider.runningInputsCache();
+        runningCache = cacheProvider.runningRegionalInputsCache();
         transactions = ignite.transactions();
         this.idCreator = idCreator;
+        this.taggingRepository = taggingRepository;
     }
 
     @PostConstruct
@@ -52,16 +60,10 @@ public class ConfigRepository {
         managedInputsCache.localLoadCacheAsync(null);
     }
 
-    public List<String> createRemote(String tenantId, RegionalInputDefinition definition) {
+    public List<String> createRegional(String tenantId, RegionalInputDefinition definition) {
         List<String> ids = new ArrayList<>(definition.getRegions().size());
 
-        final String definitionText;
-        if (definition.getStructured() != null) {
-            definitionText = structuredInputFormatter.format(definition.getStructured());
-        }
-        else {
-            definitionText = definition.getText();
-        }
+        final String definitionText = resolveDefinitionText(definition.getStructured(), definition.getText());
 
         if (Strings.isNullOrEmpty(definitionText)) {
             throw new IllegalArgumentException("text or structured needs to be specified");
@@ -79,7 +81,7 @@ public class ConfigRepository {
                 config.setTenantId(tenantId);
                 config.setRegion(region);
 
-                log.debug("Creating externally provided configuration: {}", config);
+                log.debug("Creating regional configuration: {}", config);
 
                 managedInputsCache.put(config.getId(), config);
             }
@@ -91,7 +93,44 @@ public class ConfigRepository {
     }
 
     public String createAssigned(String tenantId, AssignedInputDefinition definition) {
+        final Collection<String> matchingTelegrafs = taggingRepository.findMatches(tenantId,
+                                                                                   definition.getAssignmentTags());
+
+        if (matchingTelegrafs == null || matchingTelegrafs.isEmpty()) {
+            throw new IllegalArgumentException("Unable to find any running telegrafs that satisfy the assignment tags");
+        }
+
+        final String definitionText = resolveDefinitionText(definition.getStructured(), definition.getText());
+
+        try (Transaction tx = transactions.txStart()) {
+            final ManagedInput config = new ManagedInput();
+            final String id = idCreator.create();
+            config.setId(id);
+            config.setText(definitionText);
+            config.setStructured(definition.getStructured());
+            config.setTitle(definition.getTitle());
+            config.setTenantId(tenantId);
+            config.setAssignmentTags(definition.getAssignmentTags());
+
+            log.debug("Creating assigned configuration: {}", config);
+
+            managedInputsCache.putAsync(config.getId(), config);
+
+            tx.commit();
+        }
+
+
         return null;
+    }
+
+    private String resolveDefinitionText(StructuredInputConfig structured, String text) {
+        final String definitionText;
+        if (structured != null) {
+            definitionText = structuredInputFormatter.format(structured);
+        } else {
+            definitionText = text;
+        }
+        return definitionText;
     }
 
     public void delete(String tenantId, String id) throws NotOwnedException {
@@ -139,7 +178,7 @@ public class ConfigRepository {
             throw new NotOwnedException("Not owned by tenant");
         }
 
-        managedInput.setRunningOn(runningCache.get(new RunningRemoteInputKey(id, managedInput.getRegion())));
+        managedInput.setRunningOn(runningCache.get(new RunningRegionalInputKey(id, managedInput.getRegion())));
 
         return managedInput;
     }
@@ -157,7 +196,8 @@ public class ConfigRepository {
                     .map(entry -> {
                         final ManagedInput value = entry.getValue();
 
-                        value.setRunningOn(runningCache.get(new RunningRemoteInputKey(value.getId(), value.getRegion())));
+                        value.setRunningOn(runningCache.get(new RunningRegionalInputKey(value.getId(),
+                                                                                        value.getRegion())));
 
                         return value;
                     })
