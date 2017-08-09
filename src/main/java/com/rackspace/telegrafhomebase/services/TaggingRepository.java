@@ -71,6 +71,42 @@ public class TaggingRepository {
         }
     }
 
+    /**
+     * MUST be within an active transaction.
+     *
+     * @param tenantId
+     * @param tid
+     * @param tags
+     */
+    public void removeNodeTags(String tenantId, String tid, Map<String, String> tags) {
+        if (tags == null) {
+            return;
+        }
+
+        log.debug("Removing use of node tags={} by telegraf={} for tenant={}", tags, tid, tenantId);
+        tags.entrySet().stream()
+                .filter(entry -> entry.getValue() != null)
+                .map(entry -> new TaggedNodesKey(tenantId, entry.getKey(), entry.getValue()))
+                .forEach(key -> {
+                    taggedNodes.invoke(key, (entry, args) -> {
+                        if (entry.getValue() != null) {
+                            if (entry.getValue().getTids().remove(tid)) {
+                                if (entry.getValue().getTids().isEmpty()) {
+                                    // was the last one, so remove the whole entry
+                                    entry.remove();
+                                } else {
+                                    entry.setValue(entry.getValue());
+                                }
+                            }
+                            else {
+                                log.warn("Trying to remove tagged node={}, but not present", key);
+                            }
+                        }
+                        return null;
+                    });
+                });
+    }
+
     public MultiValueMap<String, String> getActiveTags(String tenantId) {
         final SqlFieldsQuery query = new SqlFieldsQuery("select name, value from TaggedNodes as t" +
                                                                 " where t.tenantId = ?");

@@ -283,7 +283,6 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
         final String tid = identifiers.getTid();
         final String region = identifiers.getRegion();
         final String tenant = identifiers.getTenant();
-        final Map<String, String> enrichedTags;
 
         if (nodeTags != null) {
             // enrich the node tags with standard tags
@@ -292,6 +291,8 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
         }
 
         log.debug("Setting up config pack provider for telegraf={}", identifiers);
+
+        perTelegrafResponseStreams.put(tid, responseStream);
 
         ConnectedNode connectedNodeValue = new ConnectedNode();
         connectedNodeValue.setClusterNodeId(ourId);
@@ -325,8 +326,6 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
             responseStream.onError(new IllegalArgumentException("Missing region and tenant designation."));
             return;
         }
-
-        perTelegrafResponseStreams.put(tid, responseStream);
     }
 
     private void handleTelegrafRemoval(String tid) {
@@ -334,8 +333,13 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
 
         try (Transaction tx = igniteTransactions.txStart()) {
             directAssignmentsCache.remove(tid);
-            connectedNodesCache.remove(tid);
+            final ConnectedNode oldInfo = connectedNodesCache.getAndRemove(tid);
+            if (oldInfo != null) {
+                taggingRepository.removeNodeTags(oldInfo.getTenantId(), tid, oldInfo.getTags());
+            }
             tx.commit();
+        } catch (Exception e) {
+            log.error("Unexpected exception while handling telegraf={} removal", tid, e);
         }
     }
 
