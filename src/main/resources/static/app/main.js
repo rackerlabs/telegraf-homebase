@@ -44,7 +44,7 @@ angular.module("ConfigApp", [
                 return $http.get('/config/'+session.tenantId);
             },
 
-            add: function(region, definition, title) {
+            addRegional: function(region, definition, title) {
                 return $http({
                     method: 'POST',
                     url: '/config/'+session.tenantId+'/regional',
@@ -56,12 +56,28 @@ angular.module("ConfigApp", [
                 })
             },
 
+            addAssigned: function(tags, definition, title) {
+                return $http({
+                    method: 'POST',
+                    url: '/config/'+session.tenantId+'/assigned',
+                    data: {
+                        text: definition,
+                        title: title,
+                        assignmentTags: tags
+                    }
+                })
+            },
+
             remove: function(region, id) {
                 return $http.delete('/config/'+session.tenantId+'/'+id)
             },
 
             currentTenant: function() {
                 return session.tenantId;
+            },
+
+            tags: function() {
+                return $http.get('/config/'+session.tenantId+'/tags');
             }
         }
     })
@@ -113,7 +129,14 @@ angular.module("ConfigApp", [
                 controller: 'AddController',
                 fullscreen: true
             }).then(function ok(details){
-                ConfigApi.add(details.region, details.definition, details.title)
+                var result;
+                if (details.region != null) {
+                    result = ConfigApi.addRegional(details.region, details.definition, details.title);
+                } else {
+                    result = ConfigApi.addAssigned(details.tags, details.definition, details.title);
+                }
+
+                result
                     .then(function success(resp) {
                         $mdToast.show(
                             $mdToast.simple()
@@ -134,23 +157,41 @@ angular.module("ConfigApp", [
         };
     })
 
-    .controller('AddController', function($scope, $mdDialog) {
+    .filter('excluding', function() {
+        return function(input, excludingThese) {
+            return _.omitBy(input, function(val,key) {
+                return _.has(excludingThese, key);
+            });
+        }
+    })
+
+    .controller('AddController', function($scope, $mdDialog, ConfigApi) {
         $scope.regions = ['west', 'central', 'east'];
         $scope.region = $scope.regions[0];
         $scope.title = '';
         $scope.definition = '';
+        $scope.selectedModeIndex = 0;
+        $scope.tags = {};
+        $scope.currentTagName = null;
+        $scope.selectedTags = {};
+
+        $scope.$watch('selectedModeIndex', function (val) {
+            if (val === 1) {
+                ConfigApi.tags().then(
+                    function success(resp) {
+                        $scope.tags = resp.data;
+                    }
+                )
+            }
+        });
 
         $scope.examples = [
             {
                 label: "HTTP response",
                 definition: '[[inputs.http_response]]\n' +
-                '  ## Server address (default http://localhost)\n' +
                 '  address = "https://www.rackspace.com"\n' +
-                '  ## Set response_timeout (default 5 seconds)\n' +
                 '  response_timeout = "5s"\n' +
-                '  ## HTTP Request Method\n' +
                 '  method = "GET"\n' +
-                '  ## Whether to follow redirects from the server (defaults to false)\n' +
                 '  follow_redirects = true'
             },
             {
@@ -171,6 +212,10 @@ angular.module("ConfigApp", [
                 '  [[inputs.snmp.field]]\n' +
                 '    name = "total-page-count-letter-duplex"\n' +
                 '    oid = ".1.3.6.1.4.1.11.2.3.9.4.2.1.1.16.1.1.14.0"'
+            },
+            {
+                label: 'Memory',
+                definition: '[[inputs.mem]]'
             }
         ];
 
@@ -180,10 +225,17 @@ angular.module("ConfigApp", [
 
         $scope.add = function() {
             $mdDialog.hide({
-                region: $scope.region,
+                region: $scope.selectedModeIndex === 0 ? $scope.region : null,
                 title: $scope.title,
-                definition: $scope.definition
+                definition: $scope.definition,
+                tags: $scope.selectedModeIndex === 1 ? $scope.selectedTags : null
             })
+        };
+
+        $scope.addTag = function() {
+            $scope.selectedTags[$scope.currentTagName] = $scope.currentTagValue;
+            $scope.currentTagName = null;
+            $scope.currentTagValue = null;
         };
 
         $scope.cancel = function () {

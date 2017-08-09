@@ -18,14 +18,24 @@
         <md-card ng-repeat="c in configs track by c.id">
             <h5 class="md-title">{{c.title}} ({{c.id}})</h5>
             <table class="prop-table">
-                <tr>
+                <tr ng-if="c.region">
                     <th>Region:</th>
                     <td>{{c.region}}</td>
+                </tr>
+                <tr ng-if="c.assignmentTags">
+                    <th>Tags:</th>
+                    <td>
+                        <table class="prop-table sub-prop-table">
+                            <tr ng-repeat="(name,value) in c.assignmentTags">
+                                <th>{{name}}:</th><td>{{value}}</td>
+                            </tr>
+                        </table>
+                    </td>
                 </tr>
                 <tr>
                     <th>Running on:</th>
                     <td>
-                            <div ng-repeat="tid in c.runningOn">{{tid}}</div>
+                        <div ng-repeat="tid in c.runningOn">{{tid}}</div>
                     </td>
                 </tr>
 

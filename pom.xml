@@ -201,6 +201,11 @@
             <artifactId>angular-material</artifactId>
             <version>${angularjs-material.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>lodash</artifactId>
+            <version>4.17.4</version>
+        </dependency>
 	</dependencies>
 
 	<build>

@@ -32,6 +32,11 @@ textarea {
 
 .prop-table th {
     text-align: left;
+    vertical-align: top;
+}
+
+.sub-prop-table th {
+    font-weight: normal;
 }
 
 .tenant-info {
