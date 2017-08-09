@@ -14,7 +14,7 @@ COPY --from=build /build/target/telegraf-homebase.jar /app/
 
 EXPOSE 6565 8080
 
-HEALTHCHECK CMD ["/usr/bin/curl","http://localhost:8080/health"]
+HEALTHCHECK --start-period=10s CMD ["/usr/bin/curl","http://localhost:8080/health"]
 
 ENTRYPOINT ["/usr/bin/java"]
 CMD ["-jar","/app/telegraf-homebase.jar"]

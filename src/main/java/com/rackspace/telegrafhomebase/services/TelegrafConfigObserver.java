@@ -139,7 +139,9 @@ public class TelegrafConfigObserver implements Closeable, ClusterSingletonListen
 
         query.setRemoteFilterFactory(() -> {
             return cacheEntryEvent -> {
-                return cacheEntryEvent.getEventType().equals(javax.cache.event.EventType.CREATED);
+                return cacheEntryEvent.getValue().getTenantId() != null &&
+                        !cacheEntryEvent.getValue().getTenantId().isEmpty() &&
+                        cacheEntryEvent.getEventType().equals(javax.cache.event.EventType.CREATED);
             };
         });
 

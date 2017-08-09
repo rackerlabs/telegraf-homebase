@@ -256,16 +256,6 @@
 			<name>bintray</name>
 			<url>http://dl.bintray.com/lognet/maven</url>
 		</repository>
-
-        <repository>
-            <!-- for spring data cassandra milestones -->
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/libs-milestone</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
 	</repositories>
 
 </project>

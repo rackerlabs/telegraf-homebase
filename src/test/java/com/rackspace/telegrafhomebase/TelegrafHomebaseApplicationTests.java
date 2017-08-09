@@ -8,6 +8,7 @@ import com.rackspace.telegrafhomebase.services.TelegrafWellBeingHandler;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -44,6 +45,7 @@ import static org.mockito.Mockito.when;
                 "logging.level.com.rackspace.telegrafhomebase=debug"
         })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@Slf4j
 public class TelegrafHomebaseApplicationTests {
 
     @MockBean
@@ -84,6 +86,7 @@ public class TelegrafHomebaseApplicationTests {
                 .setTid("t-1")
                 .setRegion("west")
                 .build();
+        log.debug("Starting t-1");
         configPackResponder.startConfigStreaming(identifiers1, nodeTags, observer1);
 
         Telegraf.Config expectedConfig = Telegraf.Config.newBuilder()
@@ -104,16 +107,19 @@ public class TelegrafHomebaseApplicationTests {
                 .setTid("t-2")
                 .setRegion("west")
                 .build();
+        log.debug("Starting t-2");
         configPackResponder.startConfigStreaming(identifiers2, nodeTags, observer2);
 
         Thread.sleep(10);
+        log.debug("Checking pre-expiration state");
         final Telegraf.CurrentStateResponse normalResp = wellBeingHandler.confirmState(identifiers1,
                                                                                        Collections.singletonList("id-1"));
         assertThat(normalResp.getRemovedIdList(), empty());
 
-        System.out.println("Allowing for expiration");
+        log.debug("Allowing for expiration");
         Thread.sleep(1500L);
 
+        log.debug("Checking for post-expiration state");
         // ...the second "remote" should have been given the config
         verify(observer2, timeout(500).times(1))
                 .onNext(expectedConfigPack);
@@ -131,12 +137,14 @@ public class TelegrafHomebaseApplicationTests {
 
     }
 
+    @Slf4j
     private static class OneTimeObserver implements Answer {
         AtomicInteger count = new AtomicInteger();
 
         @Override
         public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
             if (count.getAndIncrement() > 0) {
+                log.debug("Faking a disconnect");
                 throw new StatusRuntimeException(Status.CANCELLED);
             }
             return null;
