@@ -26,7 +26,8 @@ import java.util.Set;
  * @author Geoff Bourne
  * @since Aug 2017
  */
-@Repository @Slf4j
+@Repository
+@Slf4j
 public class TaggingRepository {
     private final IgniteTransactions igniteTransactions;
     private final IgniteCache<TaggedNodesKey, TaggedNodes> taggedNodes;
@@ -41,25 +42,45 @@ public class TaggingRepository {
     public void storeNodeTags(String tenantId, String tid, Map<String, String> nodeTags) {
 
         try (Transaction tx = igniteTransactions.txStart()) {
-            nodeTags.forEach((name, value) ->
-                                     taggedNodes.invoke(new TaggedNodesKey(tenantId, name, value),
-                                                        taggedNodesAdder,
-                                                        tid));
+            nodeTags.entrySet().stream()
+                    .filter(entry -> entry.getValue() != null)
+                    .map(entry -> new TaggedNodesKey(tenantId,
+                                                     entry.getKey(),
+                                                     entry.getValue()))
+                    .forEach(key -> taggedNodes.invoke(key,
+                                                       (entry, args) -> {
+                                                           final TaggedNodes nodes;
+                                                           if (entry.getValue() == null) {
+                                                               nodes = new TaggedNodes();
+                                                           } else {
+                                                               nodes = entry.getValue();
+                                                           }
+
+                                                           final boolean didntContain = nodes.getTids().add(tid);
+                                                           if (didntContain) {
+                                                               entry.setValue(nodes);
+                                                           } else {
+                                                               log.warn("Tagged node={} was already present with tag {}", tid, entry.getKey());
+                                                           }
+
+                                                           return didntContain;
+
+                                                       }));
 
             tx.commit();
         }
     }
 
-    public MultiValueMap<String,String> getActiveTags(String tenantId) {
+    public MultiValueMap<String, String> getActiveTags(String tenantId) {
         final SqlFieldsQuery query = new SqlFieldsQuery("select name, value from TaggedNodes as t" +
-                                                                         " where t.tenantId = ?");
+                                                                " where t.tenantId = ?");
 
-            final MultiValueMap<String, String> result = new LinkedMultiValueMap<>();
-            taggedNodes.query(query.setArgs(tenantId)).forEach(cols -> {
-                result.add(((String) cols.get(0)), ((String) cols.get(1)));
-            });
+        final MultiValueMap<String, String> result = new LinkedMultiValueMap<>();
+        taggedNodes.query(query.setArgs(tenantId)).forEach(cols -> {
+            result.add(((String) cols.get(0)), ((String) cols.get(1)));
+        });
 
-            return result;
+        return result;
     }
 
     public Collection<String> findMatches(String tenantId, Map<String, String> requestedTags) {
@@ -67,8 +88,8 @@ public class TaggingRepository {
 
         for (Map.Entry<String, String> entry : requestedTags.entrySet()) {
             final TaggedNodes matches = this.taggedNodes.get(new TaggedNodesKey(tenantId,
-                                                                                    entry.getKey(),
-                                                                                    entry.getValue()));
+                                                                                entry.getKey(),
+                                                                                entry.getValue()));
 
             if (matches == null) {
                 return null;
@@ -76,8 +97,7 @@ public class TaggingRepository {
 
             if (intersection == null) {
                 intersection = new HashSet<>(matches.getTids());
-            }
-            else {
+            } else {
                 intersection.retainAll(matches.getTids());
                 if (intersection.isEmpty()) {
                     return null;
@@ -115,4 +135,5 @@ public class TaggingRepository {
 
             return didntContain;
         }
-    }}
+    }
+}

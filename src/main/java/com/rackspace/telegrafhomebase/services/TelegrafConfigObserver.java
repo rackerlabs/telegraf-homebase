@@ -152,6 +152,10 @@ public class TelegrafConfigObserver implements Closeable, ClusterSingletonListen
                 for (CacheEntryEvent<? extends String, ? extends ConnectedNode> event : events) {
                     final String tid = event.getKey();
                     final ConnectedNode info = event.getValue();
+                    if (info == null) {
+                        log.warn("ConnectedNode was null for event={} with type={}", event.getEventType());
+                        continue;
+                    }
 
                     log.debug("Finding assignable inputs for connected node={}", info);
 
@@ -162,8 +166,9 @@ public class TelegrafConfigObserver implements Closeable, ClusterSingletonListen
                         final ManagedInput input = entry.getValue();
 
                         // For this managed input, see if this telegraf satisfies all the tags
-                        if (input.getAssignmentTags().entrySet().stream()
-                                .allMatch(inputTag ->
+                        if (input.getAssignmentTags() != null &&
+                                input.getAssignmentTags().entrySet().stream()
+                                        .allMatch(inputTag ->
                                                   inputTag.getValue().equals(info.getTags().get(inputTag.getKey())))) {
 
                             assignDirectly(input, tid);
