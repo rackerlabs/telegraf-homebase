@@ -16,6 +16,6 @@ public class RunningAssignedInputKey implements Serializable {
     @QuerySqlField(index = true)
     final String managedInputId;
 
-    @QuerySqlField
+    @QuerySqlField(index = true)
     final String telegrafId;
 }

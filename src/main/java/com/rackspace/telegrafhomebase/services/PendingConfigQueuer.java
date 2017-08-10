@@ -116,7 +116,7 @@ public class PendingConfigQueuer {
                         "Unexpected exception while taking from pending config queue"));
                 return;
             }
-            log.debug("Acquired next configuration in queue={}", configId);
+            log.debug("Acquired next managed input={} in queue", configId);
 
             proceed = handler.handle(configId);
         }

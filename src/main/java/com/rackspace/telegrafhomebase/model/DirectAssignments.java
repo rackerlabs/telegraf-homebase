@@ -62,7 +62,7 @@ public class DirectAssignments {
     }
 
     public Set<String> additionsIn(DirectAssignments updatedAssignments) {
-        if (this.managedInputIds == null || updatedAssignments.managedInputIds == null) {
+        if (this.managedInputIds == null || updatedAssignments == null || updatedAssignments.managedInputIds == null) {
             return Collections.emptySet();
         }
         final HashSet<String> content = new HashSet<>(updatedAssignments.managedInputIds);

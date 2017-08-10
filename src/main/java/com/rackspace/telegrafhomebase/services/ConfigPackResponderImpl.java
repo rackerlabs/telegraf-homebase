@@ -28,6 +28,7 @@ import remote.Telegraf;
 import javax.annotation.PostConstruct;
 import javax.cache.Cache;
 import javax.cache.event.CacheEntryEvent;
+import javax.cache.event.EventType;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
@@ -145,7 +146,12 @@ public class ConfigPackResponderImpl implements Closeable, ConfigPackResponder {
         final Set<String> additions;
         final Set<String> removals;
         final DirectAssignments updatedAssignment = event.getValue();
-        log.debug("Handling updated assignment={}", updatedAssignment);
+        log.debug("Handling updated assignment={} via event={}", updatedAssignment, event);
+
+        if (event.getEventType().equals(EventType.REMOVED)) {
+            log.debug("Full removal via event={} is already handled elsewhere", event);
+            return;
+        }
 
         if (prev == null) {
             additions = updatedAssignment.get();

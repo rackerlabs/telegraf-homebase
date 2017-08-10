@@ -1,9 +1,11 @@
 package com.rackspace.telegrafhomebase;
 
+import com.rackspace.telegrafhomebase.model.AssignedInputDefinition;
 import com.rackspace.telegrafhomebase.model.RegionalInputDefinition;
 import com.rackspace.telegrafhomebase.services.ConfigPackResponder;
 import com.rackspace.telegrafhomebase.services.ConfigRepository;
 import com.rackspace.telegrafhomebase.services.IdCreator;
+import com.rackspace.telegrafhomebase.services.TaggingRepository;
 import com.rackspace.telegrafhomebase.services.TelegrafWellBeingHandler;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -19,15 +21,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.MultiValueMap;
 import remote.Telegraf;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.timeout;
@@ -44,7 +49,7 @@ import static org.mockito.Mockito.when;
                 "homebase.initialConsistencyCheckDelay=5",
                 "logging.level.com.rackspace.telegrafhomebase=debug"
         })
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @Slf4j
 public class TelegrafHomebaseApplicationTests {
 
@@ -55,6 +60,9 @@ public class TelegrafHomebaseApplicationTests {
     ConfigRepository configRepository;
 
     @Autowired
+    TaggingRepository taggingRepository;
+
+    @Autowired
     ConfigPackResponder configPackResponder;
 
     @Autowired
@@ -62,7 +70,7 @@ public class TelegrafHomebaseApplicationTests {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void basicEndToEnd() throws InterruptedException {
+    public void testRegionalEndToEnd() throws InterruptedException {
 
         when(idCreator.create())
                 .thenReturn("id-1");
@@ -135,6 +143,64 @@ public class TelegrafHomebaseApplicationTests {
                                                                                         Collections.singletonList("id-1"));
         assertThat(normalResp2.getRemovedIdList(), empty());
 
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testAssignedEndToEnd() throws InterruptedException {
+
+        when(idCreator.create())
+                .thenReturn("id-1");
+
+        StreamObserver<Telegraf.ConfigPack> observer1 = Mockito.mock(StreamObserver.class);
+        doAnswer(new OneTimeObserver())
+                .when(observer1).onNext(any());
+
+        final Map<String, String> nodeTags = new HashMap<>();
+        nodeTags.put("host", "machine-a");
+        nodeTags.put("os", "linux");
+        final Telegraf.Identifiers identifiers1 = Telegraf.Identifiers.newBuilder()
+                .setTid("t-1")
+                .setTenant("ac-1")
+                .build();
+        log.debug("Starting t-1");
+        configPackResponder.startConfigStreaming(identifiers1, nodeTags, observer1);
+
+        // let that soak and get observed
+        Thread.sleep(500);
+
+        final AssignedInputDefinition definition = new AssignedInputDefinition();
+        definition.setText("JUST A TEST");
+        definition.setTitle("Testing");
+        Map<String, String> desiredTags = new HashMap<>();
+        desiredTags.put("os", "linux");
+        definition.setAssignmentTags(desiredTags);
+        configRepository.createAssigned("ac-1", definition);
+
+        Telegraf.Config expectedConfig = Telegraf.Config.newBuilder()
+                .setId("id-1")
+                .setTenantId("ac-1")
+                .setTitle("Testing")
+                .setDefinition("JUST A TEST")
+                .build();
+        Telegraf.ConfigPack expectedConfigPack = Telegraf.ConfigPack.newBuilder()
+                .addNew(expectedConfig)
+                .build();
+
+        verify(observer1, timeout(500).times(1))
+                .onNext(expectedConfigPack);
+
+        Thread.sleep(10);
+        log.debug("Checking pre-expiration state");
+        final Telegraf.CurrentStateResponse normalResp = wellBeingHandler.confirmState(identifiers1,
+                                                                                       Collections.singletonList("id-1"));
+        assertThat(normalResp.getRemovedIdList(), empty());
+
+        log.debug("Allowing for expiration");
+        Thread.sleep(1500L);
+
+        final MultiValueMap<String, String> activeTags = taggingRepository.getActiveTags("ac-1");
+        assertTrue(activeTags.isEmpty());
     }
 
     @Slf4j

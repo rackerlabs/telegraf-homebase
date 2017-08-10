@@ -5,6 +5,7 @@ import com.rackspace.telegrafhomebase.config.IgniteCacheProvider;
 import com.rackspace.telegrafhomebase.model.ConnectedNode;
 import com.rackspace.telegrafhomebase.model.DirectAssignments;
 import com.rackspace.telegrafhomebase.model.ManagedInput;
+import com.rackspace.telegrafhomebase.model.RunningAssignedInputKey;
 import com.rackspace.telegrafhomebase.model.RunningRegionalInputKey;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ignite.Ignite;
@@ -139,9 +140,10 @@ public class TelegrafConfigObserver implements Closeable, ClusterSingletonListen
 
         query.setRemoteFilterFactory(() -> {
             return cacheEntryEvent -> {
-                return cacheEntryEvent.getValue().getTenantId() != null &&
-                        !cacheEntryEvent.getValue().getTenantId().isEmpty() &&
-                        cacheEntryEvent.getEventType().equals(javax.cache.event.EventType.CREATED);
+                return cacheEntryEvent.getEventType().equals(javax.cache.event.EventType.CREATED) &&
+                        cacheEntryEvent.getValue() != null &&
+                        cacheEntryEvent.getValue().getTenantId() != null &&
+                        !cacheEntryEvent.getValue().getTenantId().isEmpty();
             };
         });
 
@@ -192,8 +194,11 @@ public class TelegrafConfigObserver implements Closeable, ClusterSingletonListen
             switch (cacheEvent.type()) {
 
                 case EventType.EVT_CACHE_OBJECT_EXPIRED:
+
                     if (cacheEvent.cacheName().equals(CacheNames.RUNNING_REGIONAL_INPUTS)) {
-                        handleRunningConfigExpiration(cacheEvent);
+                        handleRunningRegionalExpiration(cacheEvent);
+                    } else if (cacheEvent.cacheName().equals(CacheNames.RUNNING_ASSIGNED_INPUTS)) {
+                        handleRunningAssignedExpiration(cacheEvent);
                     }
                     break;
                 default:
@@ -236,7 +241,7 @@ public class TelegrafConfigObserver implements Closeable, ClusterSingletonListen
 
     }
 
-    private void handleRunningConfigExpiration(CacheEvent cacheEvent) {
+    private void handleRunningRegionalExpiration(CacheEvent cacheEvent) {
         final Object rawKey = cacheEvent.key();
         final RunningRegionalInputKey key;
         if (rawKey instanceof BinaryObject) {
@@ -244,11 +249,51 @@ public class TelegrafConfigObserver implements Closeable, ClusterSingletonListen
         } else {
             key = (RunningRegionalInputKey) rawKey;
         }
-        log.info("Observed expiration of applied config {}", key);
+        log.info("Observed expiration of running regional config {}", key);
 
         if (key.getRegion() != null) {
             log.info("Re-queueing regional config: {}", key);
             pendingConfigQueuer.offer(key.getRegion(), key.getMid(), true);
+        }
+    }
+
+    private void handleRunningAssignedExpiration(CacheEvent cacheEvent) {
+        final Object rawKey = cacheEvent.key();
+        final RunningAssignedInputKey key;
+        if (rawKey instanceof BinaryObject) {
+            key = ((BinaryObject) rawKey).deserialize();
+        } else {
+            key = (RunningAssignedInputKey) rawKey;
+        }
+
+        log.info("Observed expiration of running assigned config {}", key);
+
+        final Boolean nowEmpty = directAssignmentsCache.invoke(key.getTelegrafId(), (mutableEntry, args) -> {
+            DirectAssignments assignments = mutableEntry.getValue();
+            if (assignments != null) {
+                final String mid = (String) args[0];
+                assignments = assignments.remove(mid);
+
+                if (assignments.get().isEmpty()) {
+                    log.debug("Removing direct assignment");
+                    mutableEntry.remove();
+                    return true;
+                } else {
+                    log.debug("Removing managed input={} from direct assignments of {}", mid, mutableEntry.getKey());
+                    mutableEntry.setValue(assignments);
+                }
+            }
+
+            return false;
+        }, key.getManagedInputId());
+
+        if (nowEmpty) {
+            log.debug("Removing connected node entry");
+            final ConnectedNode info = connectedNodesCache.getAndRemove(key.getTelegrafId());
+
+            if (info != null) {
+                taggingRepository.removeNodeTags(info.getTenantId(), key.getTelegrafId(), info.getTags());
+            }
         }
     }
 

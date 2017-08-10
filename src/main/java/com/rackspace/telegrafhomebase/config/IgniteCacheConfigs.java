@@ -86,6 +86,23 @@ public class IgniteCacheConfigs {
     }
 
     @Bean
+    public CacheConfiguration<RunningAssignedInputKey, String/*cluster node id*/> runningAssignedInputsCacheConfig() {
+        final CacheConfiguration<RunningAssignedInputKey, String> config = new CacheConfiguration<>(
+                CacheNames.RUNNING_ASSIGNED_INPUTS
+        );
+        config.setTypes(RunningAssignedInputKey.class, String.class);
+        config.setExpiryPolicyFactory(TouchedExpiryPolicy.factoryOf(
+                new Duration(TimeUnit.SECONDS, properties.getRunningConfigTtl())
+        ));
+        config.setEagerTtl(true);
+        config.setBackups(properties.getRunningConfigCacheBackups());
+
+        config.setIndexedTypes(RunningAssignedInputKey.class, String.class);
+
+        return config;
+    }
+
+    @Bean
     public CacheConfiguration<TaggedNodesKey, TaggedNodes> taggedNodesCacheConfig(
             QueryEntities taggedNodesQueryEntities
     ) {
@@ -95,19 +112,6 @@ public class IgniteCacheConfigs {
         config.setTypes(TaggedNodesKey.class, TaggedNodes.class);
         config.setBackups(properties.getRunningConfigCacheBackups());
         config.setQueryEntities(taggedNodesQueryEntities.getQueryEntities());
-
-        return config;
-    }
-
-    @Bean
-    public CacheConfiguration<RunningAssignedInputKey, String/*cluster node id*/> runningAssignedInputsCacheConfig() {
-        final CacheConfiguration<RunningAssignedInputKey, String> config = new CacheConfiguration<>(
-                CacheNames.RUNNING_ASSIGNED_INPUTS
-        );
-        config.setTypes(RunningAssignedInputKey.class, String.class);
-        config.setBackups(properties.getRunningConfigCacheBackups());
-
-        config.setIndexedTypes(RunningAssignedInputKey.class, String.class);
 
         return config;
     }
