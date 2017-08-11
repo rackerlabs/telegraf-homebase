@@ -6,6 +6,8 @@ import javax.validation.constraints.Size;
 import java.util.Map;
 
 /**
+ * Used by REST interactions to convey a managed input that should be assigned by tag(s).
+ *
  * @author Geoff Bourne
  * @since Aug 2017
  */

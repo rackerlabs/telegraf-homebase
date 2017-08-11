@@ -3,16 +3,18 @@ package com.rackspace.telegrafhomebase.model;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * @author Geoff Bourne
  * @since Aug 2017
  */
 @Data
-public class TaggedNodes implements Serializable {
+public class ConnectedNode implements Serializable {
     static final long serialVersionUID = 0L;
 
-    Set<String> tids = new HashSet<>();
+    String tenantId;
+    String region;
+    Map<String,String> tags;
+    String clusterNodeId;
 }

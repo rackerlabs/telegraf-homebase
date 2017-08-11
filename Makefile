@@ -11,10 +11,18 @@ swarm-down:
 swarm-status:
 	docker stack ps tremote
 
-watch-telegraf-logs:
-	docker service logs -f tremote_telegraf --tail 0
+watch-telegraf-regional-logs:
+	docker service logs -f tremote_telegraf-regional --tail 10
+
+watch-telegraf-assigned-logs:
+	docker service logs -f tremote_telegraf-assigned --tail 10
 
 watch-homebase-logs:
-	docker service logs -f tremote_homebase --tail 0
+	docker service logs -f tremote_homebase --tail 10
 
-.PHONY: local-image
+purge-volumes:
+	docker volume rm tremote_influxdb tremote_postgres tremote_cassandra
+
+.PHONY: local-image swarm-up swarm-down swarm-status
+.PHONY: watch-telegraf-regional-logs watch-telegraf-assigned-logs watch-homebase-logs
+.PHONY: purge-volumes

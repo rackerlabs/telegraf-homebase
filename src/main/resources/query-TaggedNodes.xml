@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean name="taggedNodesQueryEntities" class="com.rackspace.telegrafhomebase.config.QueryEntities">
+        <constructor-arg>
+            <list>
+
+                <bean class="org.apache.ignite.cache.QueryEntity">
+                    <property name="keyType" value="com.rackspace.telegrafhomebase.model.TaggedNodesKey"/>
+                    <property name="valueType" value="com.rackspace.telegrafhomebase.model.TaggedNodes"/>
+
+                    <property name="fields">
+                        <map>
+                            <!-- must be present since it's a key field -->
+                            <entry key="tenantId" value="java.lang.String"/>
+                            <entry key="name" value="java.lang.String"/>
+                            <entry key="value" value="java.lang.String"/>
+                        </map>
+                    </property>
+
+                    <property name="indexes">
+                        <list>
+                            <bean class="org.apache.ignite.cache.QueryIndex">
+                                <constructor-arg value="tenantId"/>
+                            </bean>
+                        </list>
+                    </property>
+                </bean>
+
+            </list>
+        </constructor-arg>
+    </bean>
+</beans>

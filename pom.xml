@@ -201,6 +201,11 @@
             <artifactId>angular-material</artifactId>
             <version>${angularjs-material.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>lodash</artifactId>
+            <version>4.17.4</version>
+        </dependency>
 	</dependencies>
 
 	<build>
@@ -251,16 +256,6 @@
 			<name>bintray</name>
 			<url>http://dl.bintray.com/lognet/maven</url>
 		</repository>
-
-        <repository>
-            <!-- for spring data cassandra milestones -->
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/libs-milestone</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
 	</repositories>
 
 </project>

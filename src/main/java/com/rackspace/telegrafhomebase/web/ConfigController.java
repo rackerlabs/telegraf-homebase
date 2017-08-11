@@ -2,9 +2,10 @@ package com.rackspace.telegrafhomebase.web;
 
 import com.rackspace.telegrafhomebase.model.AssignedInputDefinition;
 import com.rackspace.telegrafhomebase.model.ConfigResponse;
-import com.rackspace.telegrafhomebase.model.ManagedInput;
+import com.rackspace.telegrafhomebase.model.ManagedInputExt;
 import com.rackspace.telegrafhomebase.model.RegionalInputDefinition;
 import com.rackspace.telegrafhomebase.services.ConfigRepository;
+import com.rackspace.telegrafhomebase.services.TaggingRepository;
 import com.rackspace.telegrafhomebase.shared.NotFoundException;
 import com.rackspace.telegrafhomebase.shared.NotOwnedException;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.validation.Valid;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This is the REST interface for configuring managed telegraf inputs.
@@ -36,19 +38,21 @@ import java.util.List;
 public class ConfigController {
 
     private final ConfigRepository configRepository;
+    private final TaggingRepository taggingRepository;
 
     @Autowired
-    public ConfigController(ConfigRepository configRepository) {
+    public ConfigController(ConfigRepository configRepository, TaggingRepository taggingRepository) {
         this.configRepository = configRepository;
+        this.taggingRepository = taggingRepository;
     }
 
     @GetMapping("{tenantId}")
-    public List<ManagedInput> getAllForTenant(@PathVariable String tenantId) {
+    public List<ManagedInputExt> getAllForTenant(@PathVariable String tenantId) {
         return configRepository.getAllForTenant(tenantId);
     }
 
     @GetMapping("{tenantId}/{id}")
-    public ManagedInput getOne(@PathVariable String tenantId, @PathVariable String id) throws NotFoundException, NotOwnedException {
+    public ManagedInputExt getOne(@PathVariable String tenantId, @PathVariable String id) throws NotFoundException, NotOwnedException {
         return configRepository.getWithDetails(tenantId, id);
     }
 
@@ -57,13 +61,13 @@ public class ConfigController {
         configRepository.delete(tenantId, id);
     }
 
-    @PostMapping(value = "{tenantId}/remote")
+    @PostMapping(value = "{tenantId}/regional")
     public ConfigResponse createConfig(@PathVariable String tenantId,
                                        @RequestBody @Validated RegionalInputDefinition definition) {
 
         final ConfigResponse resp = new ConfigResponse();
         resp.setCreated(
-                configRepository.createRemote(tenantId, definition)
+                configRepository.createRegional(tenantId, definition)
         );
 
         return resp;
@@ -78,5 +82,10 @@ public class ConfigController {
         final ConfigResponse resp = new ConfigResponse();
         resp.setCreated(Collections.singletonList(id));
         return resp;
+    }
+
+    @GetMapping("{tenantId}/tags")
+    public Map<String,List<String>> getActiveTags(@PathVariable String tenantId) {
+        return taggingRepository.getActiveTags(tenantId);
     }
 }

@@ -15,13 +15,6 @@
                 </md-input-container>
 
                 <md-input-container>
-                    <label>Region</label>
-                    <md-select ng-model="region">
-                        <md-option ng-value="r" ng-repeat="r in regions">{{r}}</md-option>
-                    </md-select>
-                </md-input-container>
-
-                <md-input-container>
                     <label>Start with an example</label>
                     <md-select ng-model="selectedExample" placeholder="Start with an example">
                         <md-option ng-repeat="opt in examples" ng-value="opt.definition">{{opt.label}}</md-option>
@@ -38,6 +31,46 @@
                     <textarea ng-model="definition" ng-focus="$event.target.select()"></textarea>
                 </md-input-container>
 
+                <md-tabs md-selected="selectedModeIndex">
+                    <md-tab label="Regional">
+
+                        <md-input-container>
+                            <label>Region</label>
+                            <md-select ng-model="region">
+                                <md-option ng-value="r" ng-repeat="r in regions">{{r}}</md-option>
+                            </md-select>
+                        </md-input-container>
+
+                    </md-tab>
+                    <md-tab label="Assigned">
+
+                        <table class="prop-table">
+                            <tr ng-repeat="(name,value) in selectedTags">
+                                <th>{{name}}:</th><td>{{value}}</td>
+                            </tr>
+                        </table>
+
+                        <div>
+                            <md-input-container>
+                                <md-select ng-model="currentTagName" placeholder="Tag Name">
+                                    <md-option ng-value="name" ng-repeat="(name,values) in tags | excluding:selectedTags">
+                                        {{ name }}
+                                    </md-option>
+                                </md-select>
+                            </md-input-container>
+
+                            <md-input-container ng-show="currentTagName">
+                                <md-select ng-model="currentTagValue" placeholder="Tag Value">
+                                    <md-option ng-value="value" ng-repeat="value in tags[currentTagName]">{{ value }}</md-option>
+                                </md-select>
+                            </md-input-container>
+
+                            <md-button ng-click="addTag()" ng-show="currentTagValue">Add Tag</md-button>
+
+                        </div>
+
+                    </md-tab>
+                </md-tabs>
 
             </div>
         </md-dialog-content>

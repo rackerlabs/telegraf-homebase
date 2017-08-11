@@ -23,15 +23,12 @@ import org.springframework.context.annotation.Configuration;
 public class IgniteConfig {
 
     private final IgniteProperties properties;
-    private final TelegrafProperties telegrafProperties;
     private final CacheConfiguration[] cacheConfigs;
 
     @Autowired
     public IgniteConfig(IgniteProperties properties,
-                        TelegrafProperties telegrafProperties,
                         CacheConfiguration[] cacheConfigs) {
         this.properties = properties;
-        this.telegrafProperties = telegrafProperties;
         this.cacheConfigs = cacheConfigs;
     }
 

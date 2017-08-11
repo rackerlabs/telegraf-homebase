@@ -6,6 +6,7 @@ import javax.validation.constraints.Size;
 import java.util.List;
 
 /**
+ * Used by REST interactions to convey a managed input that should be executed by a remote telegraf.
  * @author Geoff Bourne
  * @since Aug 2017
  */
