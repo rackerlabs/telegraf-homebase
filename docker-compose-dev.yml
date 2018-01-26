@@ -9,7 +9,7 @@ services:
     ports:
       - 9042:9042
     environment:
-      CASSANDRA_SEEDS: cassandra
+      CASSANDRA_SEEDS: localhost
     healthcheck:
       test: ["CMD-SHELL", "[ $$(nodetool statusgossip) = running ]"]
       interval: 10s

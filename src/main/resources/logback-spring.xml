@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+
+    <springProperty name="logbackSenderPort" source="logback.sender.port"
+                    defaultValue="9009"/>
+    <springProperty name="logbackSenderAddress" source="logback.sender.address"
+                    defaultValue="localhost"/>
+    <springProperty name="logbackSenderIncludeCallerData" source="logback.sender.includeCallerData"
+                    defaultValue="true"/>
+
+    <springProfile name="logbackSender">
+        <appender name="SOCKET" class="ch.qos.logback.classic.net.SocketAppender">
+            <remoteHost>${logbackSenderAddress}</remoteHost>
+            <port>${logbackSenderPort}</port>
+            <reconnectionDelay>10000</reconnectionDelay>
+            <includeCallerData>${logbackSenderIncludeCallerData}</includeCallerData>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="SOCKET" />
+        </root>
+    </springProfile>
+
+</configuration>
